@@ -1,5 +1,7 @@
 # backend/app/main.py
 from __future__ import annotations
+import asyncio
+import functools
 import os
 import pathlib
 import tempfile
@@ -43,7 +45,10 @@ async def analyze(
             fp = os.path.join(tmp, pathlib.Path(file.filename).name)
             with open(fp, "wb") as f:
                 f.write(await file.read())
-        result = route_content(file_path=fp, youtube_url=youtube_url, text_content=text_content, tmp_dir=tmp)
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None, functools.partial(route_content, file_path=fp, youtube_url=youtube_url, text_content=text_content, tmp_dir=tmp)
+        )
     return _enrich(result)
 
 
@@ -70,8 +75,13 @@ async def compare(
             raise HTTPException(status_code=422, detail="Provide at least one input for 'a'")
         if not pb and not youtube_url_b and not text_b:
             raise HTTPException(status_code=422, detail="Provide at least one input for 'b'")
-        ra = route_content(file_path=pa, youtube_url=youtube_url_a, text_content=text_a, tmp_dir=tmp)
-        rb = route_content(file_path=pb, youtube_url=youtube_url_b, text_content=text_b, tmp_dir=tmp)
+        loop = asyncio.get_event_loop()
+        ra = await loop.run_in_executor(
+            None, functools.partial(route_content, file_path=pa, youtube_url=youtube_url_a, text_content=text_a, tmp_dir=tmp)
+        )
+        rb = await loop.run_in_executor(
+            None, functools.partial(route_content, file_path=pb, youtube_url=youtube_url_b, text_content=text_b, tmp_dir=tmp)
+        )
     return {"a": _enrich(ra), "b": _enrich(rb)}
 
 
