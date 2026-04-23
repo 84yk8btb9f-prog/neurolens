@@ -57,6 +57,10 @@ _ADVICE: dict[str, dict[str, str]] = {
 def get_recommendations(scores: dict[str, int]) -> list[Recommendation]:
     from app.brain_mapper import REGIONS
 
+    unknown = set(scores) - _ADVICE.keys()
+    if unknown:
+        raise ValueError(f"Unknown region keys: {unknown}")
+
     def level(s: int) -> tuple[str, str]:
         if s < 35:
             return "low", "high"

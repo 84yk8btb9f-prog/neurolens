@@ -52,6 +52,7 @@ def test_get_recs_has_one_per_region():
     scores = {k: 50 for k in _ALL_KEYS}
     recs = get_recommendations(scores)
     assert len(recs) == 8
+    assert len({r.region_key for r in recs}) == 8
 
 
 def test_low_amygdala_shows_high_priority():
