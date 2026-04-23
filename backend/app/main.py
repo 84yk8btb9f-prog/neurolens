@@ -9,6 +9,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.content_processor import route_content
 from app.recommendation_engine import get_recommendations
+from app.model_manager import get_manager
 
 app = FastAPI(title="NeuroPulse API", version="1.0.0")
 app.add_middleware(
@@ -88,3 +89,17 @@ async def compare(
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/model/status")
+def model_status():
+    return get_manager().status()
+
+
+@app.post("/model/unload")
+def model_unload():
+    mgr = get_manager()
+    if not mgr.loaded:
+        return {"status": "already_unloaded"}
+    mgr.unload()
+    return {"status": "unloaded"}
