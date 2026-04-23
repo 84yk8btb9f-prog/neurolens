@@ -6,4 +6,4 @@ if [ ! -d ".venv" ]; then
   .venv/bin/pip install --upgrade pip
 fi
 .venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn app.main:app --reload --port 8000
+.venv/bin/uvicorn app.main:app --host "::" --reload --port 8000
