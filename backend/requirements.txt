@@ -2,7 +2,7 @@ fastapi==0.115.0
 uvicorn[standard]==0.30.6
 python-multipart==0.0.9
 mlx>=0.18.0
-mlx-vlm>=0.1.0
+mlx-vlm>=0.4.4,<0.5.0
 torch>=2.4.0
 Pillow==10.4.0
 openai-whisper>=20231117

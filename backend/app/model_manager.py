@@ -63,8 +63,12 @@ class ModelManager:
     def _idle_watchdog(self) -> None:
         while True:
             time.sleep(min(self._idle_timeout, 60))
-            if self.loaded and time.monotonic() - self._last_used > self._idle_timeout:
-                self.unload()
+            with self._lock:
+                if self._model is None:
+                    continue
+                if time.monotonic() - self._last_used <= self._idle_timeout:
+                    continue
+            self.unload()
 
 
 _manager = ModelManager()
