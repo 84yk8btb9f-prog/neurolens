@@ -56,3 +56,11 @@ async def test_comparison_gives_two_analyses():
     assert resp.status_code == 200
     data = resp.json()
     assert "a" in data and "b" in data
+
+
+@pytest.mark.asyncio
+async def test_compare_empty_body_fails():
+    from app.main import app
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.post("/compare")
+    assert resp.status_code == 422
