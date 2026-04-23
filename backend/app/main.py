@@ -98,8 +98,5 @@ def model_status():
 
 @app.post("/model/unload")
 def model_unload():
-    mgr = get_manager()
-    if not mgr.loaded:
-        return {"status": "already_unloaded"}
-    mgr.unload()
-    return {"status": "unloaded"}
+    did_unload = get_manager().unload()
+    return {"status": "unloaded" if did_unload else "already_unloaded"}

@@ -35,10 +35,10 @@ class ModelManager:
             model, processor = self._model, self._processor
         return model, processor
 
-    def unload(self) -> None:
+    def unload(self) -> bool:
         with self._lock:
             if self._model is None:
-                return
+                return False
             self._model = None
             self._processor = None
         gc.collect()
@@ -47,6 +47,7 @@ class ModelManager:
             mx.metal.clear_cache()
         except Exception:
             pass
+        return True
 
     def status(self) -> dict:
         with self._lock:
