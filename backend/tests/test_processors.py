@@ -52,3 +52,46 @@ def test_process_pdf_extracts_and_scores(tmp_path):
     assert out["type"] == "pdf"
     assert out["meta"]["page_count"] == 1
     assert all(0 <= v <= 100 for v in out["scores"].values())
+
+
+def test_extract_frames_produces_pil_images():
+    from app.processors.video_processor import extract_frames
+    cap = mock.MagicMock()
+    cap.isOpened.side_effect = [True, True, False]
+    cap.get.return_value = 25.0
+    cap.read.side_effect = [
+        (True, np.zeros((480, 640, 3), dtype=np.uint8)),
+        (False, None),
+    ]
+    with mock.patch("cv2.VideoCapture", return_value=cap):
+        frames = extract_frames("/fake/vid.mp4", fps=1)
+    assert len(frames) >= 1
+    from PIL import Image as PILImage
+    assert all(isinstance(f, PILImage.Image) for f in frames)
+
+
+def test_process_video_merges_visual_and_audio():
+    from app.processors.video_processor import process_video
+    with mock.patch("app.processors.video_processor.extract_frames") as ef, \
+         mock.patch("app.processors.video_processor.transcribe_audio") as ta:
+        ef.return_value = [Image.fromarray(np.zeros((224, 224, 3), dtype=np.uint8))]
+        ta.return_value = "Amazing product buy now limited offer"
+        out = process_video("/fake/vid.mp4")
+    assert out["type"] == "video"
+    assert all(0 <= v <= 100 for v in out["scores"].values())
+
+
+_MOCK_SCORES = {k: 50 for k in ["visual_cortex", "amygdala", "face_social", "hippocampus", "language_areas", "reward_circuit", "prefrontal", "motor_action"]}
+
+
+def test_process_youtube_delegates_to_video(tmp_path):
+    from app.processors.youtube_processor import process_youtube
+    with mock.patch("app.processors.youtube_processor.download_youtube") as dl, \
+         mock.patch("app.processors.youtube_processor.process_video") as pv:
+        dl.return_value = {"video_path": "/tmp/abc.mp4", "title": "Test Ad"}
+        pv.return_value = {"type": "video", "scores": _MOCK_SCORES, "meta": {}}
+        out = process_youtube("https://youtube.com/watch?v=x", tmp_dir=str(tmp_path))
+    assert out["type"] == "youtube"
+    assert out["meta"]["title"] == "Test Ad"
+    dl.assert_called_once()
+    pv.assert_called_once()
