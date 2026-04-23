@@ -1,142 +1,124 @@
-# backend/app/brain_mapper.py
 from __future__ import annotations
-import threading
-import torch
+import json
+import re
 from PIL import Image
-from transformers import CLIPModel, CLIPProcessor
-
-_lock = threading.Lock()
-_initialized = False
-_model: CLIPModel | None = None
-_processor: CLIPProcessor | None = None
-_MODEL_ID = "openai/clip-vit-base-patch32"
+from app.model_manager import get_manager
 
 REGIONS: dict[str, dict] = {
     "visual_cortex": {
         "name": "Visual Cortex",
         "description": "Visual richness, color, composition",
         "marketing": "Visual appeal and aesthetic impact",
-        "probes": [
-            "vivid colors, rich visual detail, beautiful imagery",
-            "striking composition, high contrast, detailed texture",
-            "aesthetically pleasing, visually stunning design",
-        ],
     },
     "face_social": {
         "name": "Face & Social Areas",
         "description": "Human faces, social trust, connection",
         "marketing": "Human connection and social proof",
-        "probes": [
-            "human face, portrait, eye contact, personal connection",
-            "people together, social interaction, community, belonging",
-            "trust, authenticity, real person, genuine emotion",
-        ],
     },
     "amygdala": {
         "name": "Emotional Core",
         "description": "Emotional intensity, urgency, desire",
         "marketing": "Emotional impact and urgency",
-        "probes": [
-            "intense emotion, fear, urgency, excitement, powerful feeling",
-            "joy, happiness, love, aspiration, dream, hope",
-            "missing out, problem, pain point, frustration, anxiety",
-        ],
     },
     "hippocampus": {
         "name": "Memory Encoding",
         "description": "Memorability, novelty, narrative",
         "marketing": "Brand recall and memorability",
-        "probes": [
-            "memorable story, unique narrative, unforgettable moment",
-            "unexpected surprise, novelty, stands out, distinctive",
-            "before and after transformation, journey, sequence of events",
-        ],
     },
     "language_areas": {
         "name": "Language Processing",
         "description": "Verbal clarity, messaging, persuasion",
         "marketing": "Message clarity and persuasive copy",
-        "probes": [
-            "clear message, compelling words, persuasive language, call to action",
-            "headline, tagline, benefit statement, value proposition",
-            "storytelling, dialogue, conversation, written communication",
-        ],
     },
     "reward_circuit": {
         "name": "Reward Circuit",
         "description": "Desire, craving, purchase drive",
         "marketing": "Desire and purchase intent",
-        "probes": [
-            "desire, craving, want, need, must have, exclusive, premium",
-            "reward, achievement, satisfaction, success, transformation",
-            "deal, offer, save, get it now, own it, limited availability",
-        ],
     },
     "prefrontal": {
         "name": "Decision Center",
         "description": "Rational appeal, credibility, logic",
         "marketing": "Trust, proof, and rational justification",
-        "probes": [
-            "proof, evidence, data, statistics, credible, trustworthy, verified",
-            "logical reason, benefit, feature, how it works, why choose this",
-            "guarantee, safety, reliable, quality, professional, expert",
-        ],
     },
     "motor_action": {
         "name": "Action & Drive",
         "description": "Energy, movement, call-to-action activation",
         "marketing": "Action drive and engagement activation",
-        "probes": [
-            "action, movement, energy, dynamic, do it now, start today",
-            "motion, fast, momentum, progress, change happening",
-            "click, buy, sign up, get started, take action, join now",
-        ],
     },
 }
 
+_SYSTEM_PROMPT = """\
+You are a neuroscience-informed marketing analyst. Your task is to rate how strongly \
+the provided content would activate each of the following brain regions in a typical viewer.
 
-def _load() -> tuple[CLIPModel, CLIPProcessor]:
-    global _initialized, _model, _processor
-    with _lock:
-        if not _initialized:
-            m = CLIPModel.from_pretrained(_MODEL_ID)
-            m.eval()
-            p = CLIPProcessor.from_pretrained(_MODEL_ID)
-            _model, _processor = m, p  # atomic assignment
-            _initialized = True
-    return _model, _processor  # type: ignore[return-value]
+Score each region 0–100. Be discriminating — most scores should differ from each other. \
+A score of 50 is average; 0 means the region is not engaged at all; 100 means maximum engagement.
 
+Brain regions and what drives their activation:
+- visual_cortex: Visual richness, color variety, high contrast, strong composition, aesthetic beauty
+- face_social: Human faces, eye contact, social scenes, community, belonging, trust signals
+- amygdala: Emotional intensity — fear, urgency, joy, excitement, aspiration, pain points, desire
+- hippocampus: Memorability, novelty, surprise, distinctive storytelling, things that stand out
+- language_areas: Text clarity, compelling copy, strong CTA, persuasive language, value proposition
+- reward_circuit: Desire triggers, exclusivity, premium feel, transformation promise, "must-have" feeling
+- prefrontal: Trust signals, data, proof, logical reasoning, credibility, guarantees, expertise
+- motor_action: Energy, urgency, movement, "act now" signals, dynamic pacing, call-to-action strength
 
-def normalize_score(raw: float, lo: float = 0.10, hi: float = 0.38) -> int:
-    return max(0, min(100, round((raw - lo) / (hi - lo) * 100)))
+Return ONLY valid JSON with exactly these 8 keys, no other text:
+{"visual_cortex": <int>, "face_social": <int>, "amygdala": <int>, "hippocampus": <int>, \
+"language_areas": <int>, "reward_circuit": <int>, "prefrontal": <int>, "motor_action": <int>}"""
 
-
-def _get_image_features(model: CLIPModel, proc: CLIPProcessor, image: Image.Image) -> torch.Tensor:
-    with torch.inference_mode():
-        img_in = proc(images=image, return_tensors="pt")
-        vision_out = model.vision_model(**img_in)
-        feat = model.visual_projection(vision_out.pooler_output)
-        return feat / feat.norm(dim=-1, keepdim=True)
-
-
-def _get_text_features(model: CLIPModel, proc: CLIPProcessor, texts: list[str]) -> torch.Tensor:
-    with torch.inference_mode():
-        txt_in = proc(text=texts, return_tensors="pt", padding=True, truncation=True)
-        text_out = model.text_model(**txt_in)
-        feat = model.text_projection(text_out.pooler_output)
-        return feat / feat.norm(dim=-1, keepdim=True)
+_FALLBACK = {k: 50 for k in REGIONS}
 
 
-def _img_score(image: Image.Image, probes: list[str], model: CLIPModel, proc: CLIPProcessor) -> float:
-    img_feat = _get_image_features(model, proc, image)
-    txt_feat = _get_text_features(model, proc, probes)
-    return (img_feat @ txt_feat.T).squeeze(0).reshape(-1).max().item()
+def _parse_scores(raw: str) -> dict[str, int]:
+    text = raw.strip()
+    # Strip markdown code fences if present
+    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if fence:
+        text = fence.group(1)
+    # Find first JSON object in the output
+    obj = re.search(r"\{[^{}]+\}", text, re.DOTALL)
+    if not obj:
+        return dict(_FALLBACK)
+    try:
+        data = json.loads(obj.group())
+    except json.JSONDecodeError:
+        return dict(_FALLBACK)
+    result: dict[str, int] = {}
+    for key in REGIONS:
+        raw_val = data.get(key, 50)
+        result[key] = max(0, min(100, int(round(float(raw_val)))))
+    return result
 
 
-def _txt_score(content: str, probes: list[str], model: CLIPModel, proc: CLIPProcessor) -> float:
-    all_texts = [content] + probes  # processor handles 77-token truncation
-    feats = _get_text_features(model, proc, all_texts)
-    return (feats[0:1] @ feats[1:].T).squeeze(0).reshape(-1).max().item()
+def _generate_scores(model, processor, prompt: str, image: Image.Image | None = None) -> str:
+    from mlx_vlm import generate
+    from mlx_vlm.prompt_utils import apply_chat_template
+    from mlx_vlm.utils import load_config
+    from app.model_manager import MODEL_ID
+
+    config = load_config(MODEL_ID)
+    formatted = apply_chat_template(
+        processor, config, prompt,
+        num_images=1 if image else 0,
+    )
+    kwargs: dict = {"max_tokens": 256, "verbose": False}
+    if image is not None:
+        kwargs["image"] = image
+    return generate(model, processor, formatted, **kwargs)
+
+
+def _score_image(model, processor, image: Image.Image) -> dict[str, int]:
+    prompt = f"{_SYSTEM_PROMPT}\n\nAnalyze the image above."
+    raw = _generate_scores(model, processor, prompt, image=image)
+    return _parse_scores(raw)
+
+
+def _score_text(model, processor, text: str) -> dict[str, int]:
+    prompt = f"{_SYSTEM_PROMPT}\n\nAnalyze the following marketing content:\n\n{text[:2000]}"
+    raw = _generate_scores(model, processor, prompt)
+    return _parse_scores(raw)
 
 
 def get_brain_scores(
@@ -149,19 +131,16 @@ def get_brain_scores(
     all_txts: list[str] = list(texts or []) + ([text] if text else [])
     if not all_imgs and not all_txts:
         raise ValueError("get_brain_scores requires at least one image or text input")
-    model, proc = _load()
 
-    scores: dict[str, int] = {}
-    for key, region in REGIONS.items():
-        probes = region["probes"]
-        # Image-text similarity range: 0.10–0.38 (CLIP cross-modal)
-        # Text-text similarity range: 0.60–0.95 (CLIP same-modal)
-        normalized: list[int] = []
-        for img in all_imgs:
-            raw = _img_score(img, probes, model, proc)
-            normalized.append(normalize_score(raw, lo=0.10, hi=0.38))
-        for t in all_txts:
-            raw = _txt_score(t, probes, model, proc)
-            normalized.append(normalize_score(raw, lo=0.60, hi=0.95))
-        scores[key] = round(sum(normalized) / len(normalized)) if normalized else 0
-    return scores
+    model, processor = get_manager().get()
+
+    all_scores: list[dict[str, int]] = []
+    for img in all_imgs:
+        all_scores.append(_score_image(model, processor, img))
+    for t in all_txts:
+        all_scores.append(_score_text(model, processor, t))
+
+    return {
+        key: round(sum(s[key] for s in all_scores) / len(all_scores))
+        for key in REGIONS
+    }
