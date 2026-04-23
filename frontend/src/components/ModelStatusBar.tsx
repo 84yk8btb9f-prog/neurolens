@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Cpu, Mic, X } from "lucide-react";
+import { Cpu, Mic, Brain, X } from "lucide-react";
 
 interface StatusData {
   loaded: boolean;
+  available?: boolean;
   idle_timeout_seconds: number;
   idle_for_seconds: number | null;
   available_memory_gb?: number;
@@ -63,7 +64,8 @@ function ModelBadge({ loadedLabel, unloadedLabel, icon, statusEndpoint, unloadEn
     }
   }
 
-  if (!status) return null;
+  // Hide when backend is down or model explicitly not installed
+  if (!status || status.available === false) return null;
 
   return (
     <div
@@ -110,6 +112,14 @@ export function ModelStatusBar() {
         icon={<Mic className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
         statusEndpoint="/whisper/status"
         unloadEndpoint="/whisper/unload"
+      />
+      <ModelBadge
+        label="tribe"
+        loadedLabel="TRIBE loaded"
+        unloadedLabel="TRIBE unloaded"
+        icon={<Brain className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
+        statusEndpoint="/tribe/status"
+        unloadEndpoint="/tribe/unload"
       />
     </div>
   );
