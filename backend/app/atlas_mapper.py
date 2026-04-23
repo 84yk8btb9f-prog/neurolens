@@ -1,6 +1,9 @@
 from __future__ import annotations
+import logging
 import numpy as np
 from functools import lru_cache
+
+_log = logging.getLogger(__name__)
 
 CORTICAL_REGIONS = frozenset(
     ["visual_cortex", "face_social", "language_areas", "motor_action", "prefrontal"]
@@ -86,10 +89,16 @@ def vertex_activations_to_scores(
     """
     mean_act = preds.mean(axis=0)
     global_mean = float(mean_act.mean())
-    global_std = float(mean_act.std()) or 1.0
+    global_std = float(mean_act.std())
+    if not np.isfinite(global_std) or global_std == 0.0:
+        global_std = 1.0
     scores: dict[str, int] = {}
     for region, mask in masks.items():
-        region_mean = float(mean_act[mask].mean()) if mask.any() else global_mean
+        if mask.any():
+            region_mean = float(mean_act[mask].mean())
+        else:
+            _log.warning("Atlas region '%s' has no vertices — using global mean", region)
+            region_mean = global_mean
         z = (region_mean - global_mean) / global_std
         scores[region] = int(np.clip(round(50.0 + z * 25.0), 0, 100))
     return scores
