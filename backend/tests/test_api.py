@@ -84,3 +84,23 @@ async def test_model_unload_endpoint():
         resp = await c.post("/model/unload")
     assert resp.status_code == 200
     assert resp.json()["status"] in ("unloaded", "already_unloaded")
+
+
+@pytest.mark.asyncio
+async def test_whisper_status_returns_loaded_flag():
+    from app.main import app
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/whisper/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "loaded" in data
+    assert "idle_timeout_seconds" in data
+
+
+@pytest.mark.asyncio
+async def test_whisper_unload_endpoint():
+    from app.main import app
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.post("/whisper/unload")
+    assert resp.status_code == 200
+    assert resp.json()["status"] in ("unloaded", "already_unloaded")

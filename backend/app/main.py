@@ -9,7 +9,8 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.content_processor import route_content
 from app.recommendation_engine import get_recommendations
-from app.model_manager import get_manager
+from app.model_manager import get_manager, LowMemoryError
+from app.whisper_manager import get_whisper_manager
 
 app = FastAPI(title="NeuroPulse API", version="1.0.0")
 app.add_middleware(
@@ -100,3 +101,23 @@ def model_status():
 def model_unload():
     did_unload = get_manager().unload()
     return {"status": "unloaded" if did_unload else "already_unloaded"}
+
+
+@app.get("/whisper/status")
+def whisper_status():
+    return get_whisper_manager().status()
+
+
+@app.post("/whisper/unload")
+def whisper_unload():
+    did_unload = get_whisper_manager().unload()
+    return {"status": "unloaded" if did_unload else "already_unloaded"}
+
+
+@app.exception_handler(LowMemoryError)
+def low_memory_handler(_request, exc: LowMemoryError):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=503,
+        content={"detail": str(exc), "error": "low_memory"},
+    )

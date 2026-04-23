@@ -1,23 +1,11 @@
 from __future__ import annotations
 import os
 import subprocess
-import threading
-import whisper
 import cv2
 import numpy as np
 from PIL import Image
 from app.brain_mapper import get_brain_scores, REGIONS
-
-_wlock = threading.Lock()
-_wmodel = None
-
-
-def _get_whisper():
-    global _wmodel
-    with _wlock:
-        if _wmodel is None:
-            _wmodel = whisper.load_model("tiny")
-    return _wmodel
+from app.whisper_manager import get_whisper_manager
 
 
 def extract_frames(video_path: str, fps: float = 0.5, max_frames: int = 24) -> list[Image.Image]:
@@ -45,7 +33,7 @@ def transcribe_audio(video_path: str) -> str:
     )
     if not os.path.exists(audio_path):
         return ""
-    result = _get_whisper().transcribe(audio_path)
+    result = get_whisper_manager().get().transcribe(audio_path)
     os.remove(audio_path)
     return result.get("text", "")
 

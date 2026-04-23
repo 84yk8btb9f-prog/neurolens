@@ -5,34 +5,22 @@ import threading
 import time
 from typing import Any
 
-import psutil
-
 _log = logging.getLogger(__name__)
 
-MODEL_ID = "mlx-community/Qwen2-VL-7B-Instruct-4bit"
-
-# ~4.5 GB model weights + working set. Refuse to load if less than this is free
-# so we don't push a 16 GB Mac into swap and cause a Metal hang.
-_MIN_AVAILABLE_GB_TO_LOAD = 5.5
+WHISPER_MODEL = "tiny"
 
 
-def _load_vlm(model_id: str) -> tuple[Any, Any]:
-    from mlx_vlm import load
-    return load(model_id)
+def _load_whisper(name: str) -> Any:
+    import whisper
+    return whisper.load_model(name)
 
 
-class LowMemoryError(RuntimeError):
-    """Raised when the system doesn't have enough free RAM to safely load the VLM."""
-
-
-class ModelManager:
-    def __init__(self, idle_timeout: int = 120, min_available_gb: float = _MIN_AVAILABLE_GB_TO_LOAD):
+class WhisperManager:
+    def __init__(self, idle_timeout: int = 120):
         self._model: Any = None
-        self._processor: Any = None
         self._lock = threading.Lock()
         self._last_used: float = 0.0
         self._idle_timeout = idle_timeout
-        self._min_available_gb = min_available_gb
         self._watchdog = threading.Thread(target=self._idle_watchdog, daemon=True)
         self._watchdog.start()
 
@@ -40,31 +28,25 @@ class ModelManager:
     def loaded(self) -> bool:
         return self._model is not None
 
-    def get(self) -> tuple[Any, Any]:
+    def get(self) -> Any:
         with self._lock:
             if self._model is None:
-                available_gb = psutil.virtual_memory().available / (1024 ** 3)
-                if available_gb < self._min_available_gb:
-                    raise LowMemoryError(
-                        f"Only {available_gb:.1f} GB free; need {self._min_available_gb} GB "
-                        f"to safely load the VLM. Close apps or unload other models."
-                    )
-                _log.info("Loading VLM %s (%.1f GB free)", MODEL_ID, available_gb)
-                self._model, self._processor = _load_vlm(MODEL_ID)
+                _log.info("Loading Whisper %s", WHISPER_MODEL)
+                self._model = _load_whisper(WHISPER_MODEL)
             self._last_used = time.monotonic()
-            model, processor = self._model, self._processor
-        return model, processor
+            model = self._model
+        return model
 
     def unload(self) -> bool:
         with self._lock:
             if self._model is None:
                 return False
             self._model = None
-            self._processor = None
         gc.collect()
         try:
-            import mlx.core as mx
-            mx.metal.clear_cache()
+            import torch
+            if torch.backends.mps.is_available():
+                torch.mps.empty_cache()
         except Exception:
             pass
         return True
@@ -78,7 +60,6 @@ class ModelManager:
             "loaded": loaded,
             "idle_timeout_seconds": self._idle_timeout,
             "idle_for_seconds": round(idle_for, 1) if idle_for else None,
-            "available_memory_gb": round(psutil.virtual_memory().available / (1024 ** 3), 1),
         }
 
     def _idle_watchdog(self) -> None:
@@ -92,8 +73,8 @@ class ModelManager:
             self.unload()
 
 
-_manager = ModelManager()
+_manager = WhisperManager()
 
 
-def get_manager() -> ModelManager:
+def get_whisper_manager() -> WhisperManager:
     return _manager
