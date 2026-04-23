@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import threading
 import numpy as np
 from app.tribe_manager import get_tribe_manager, TribeNotAvailableError
 from app.atlas_mapper import get_vertex_masks, vertex_activations_to_scores
@@ -7,12 +8,15 @@ from app.atlas_mapper import get_vertex_masks, vertex_activations_to_scores
 _log = logging.getLogger(__name__)
 
 _masks: dict | None = None
+_masks_lock = threading.Lock()
 
 
 def _get_masks() -> dict:
     global _masks
     if _masks is None:
-        _masks = get_vertex_masks()
+        with _masks_lock:
+            if _masks is None:
+                _masks = get_vertex_masks()
     return _masks
 
 
