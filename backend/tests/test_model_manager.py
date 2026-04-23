@@ -55,3 +55,23 @@ def test_status_dict():
     with patch("app.model_manager._load_vlm", side_effect=_mock_load):
         mgr.get()
     assert mgr.status()["loaded"] is True
+
+
+def test_concurrent_get_loads_only_once():
+    mgr = ModelManager(idle_timeout=999)
+    call_count = 0
+
+    def counting_load(path):
+        nonlocal call_count
+        time.sleep(0.05)  # simulate load time
+        call_count += 1
+        return MagicMock(), MagicMock()
+
+    with patch("app.model_manager._load_vlm", side_effect=counting_load):
+        threads = [threading.Thread(target=mgr.get) for _ in range(10)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+    assert call_count == 1

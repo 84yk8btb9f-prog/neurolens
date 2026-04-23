@@ -32,14 +32,15 @@ class ModelManager:
         with self._lock:
             if self._model is None:
                 self._model, self._processor = _load_vlm(MODEL_ID)
-        return self._model, self._processor
+            model, processor = self._model, self._processor
+        return model, processor
 
     def unload(self) -> None:
         with self._lock:
             if self._model is None:
                 return
-            del self._model, self._processor
-            self._model = self._processor = None
+            self._model = None
+            self._processor = None
         gc.collect()
         try:
             import mlx.core as mx
@@ -48,9 +49,12 @@ class ModelManager:
             pass
 
     def status(self) -> dict:
-        idle_for = time.monotonic() - self._last_used if self._last_used else None
+        with self._lock:
+            loaded = self._model is not None
+            last_used = self._last_used
+        idle_for = time.monotonic() - last_used if last_used else None
         return {
-            "loaded": self.loaded,
+            "loaded": loaded,
             "idle_timeout_seconds": self._idle_timeout,
             "idle_for_seconds": round(idle_for, 1) if idle_for else None,
         }
