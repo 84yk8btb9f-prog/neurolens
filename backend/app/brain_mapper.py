@@ -6,6 +6,7 @@ from PIL import Image
 from transformers import CLIPModel, CLIPProcessor
 
 _lock = threading.Lock()
+_initialized = False
 _model: CLIPModel | None = None
 _processor: CLIPProcessor | None = None
 _MODEL_ID = "openai/clip-vit-base-patch32"
@@ -95,13 +96,15 @@ REGIONS: dict[str, dict] = {
 
 
 def _load() -> tuple[CLIPModel, CLIPProcessor]:
-    global _model, _processor
+    global _initialized, _model, _processor
     with _lock:
-        if _model is None:
-            _model = CLIPModel.from_pretrained(_MODEL_ID)
-            _model.eval()
-            _processor = CLIPProcessor.from_pretrained(_MODEL_ID)
-    return _model, _processor
+        if not _initialized:
+            m = CLIPModel.from_pretrained(_MODEL_ID)
+            m.eval()
+            p = CLIPProcessor.from_pretrained(_MODEL_ID)
+            _model, _processor = m, p  # atomic assignment
+            _initialized = True
+    return _model, _processor  # type: ignore[return-value]
 
 
 def normalize_score(raw: float, lo: float = 0.10, hi: float = 0.38) -> int:
@@ -109,31 +112,31 @@ def normalize_score(raw: float, lo: float = 0.10, hi: float = 0.38) -> int:
 
 
 def _get_image_features(model: CLIPModel, proc: CLIPProcessor, image: Image.Image) -> torch.Tensor:
-    img_in = proc(images=image, return_tensors="pt")
-    vision_out = model.vision_model(**img_in)
-    feat = model.visual_projection(vision_out.pooler_output)
-    return feat / feat.norm(dim=-1, keepdim=True)
+    with torch.inference_mode():
+        img_in = proc(images=image, return_tensors="pt")
+        vision_out = model.vision_model(**img_in)
+        feat = model.visual_projection(vision_out.pooler_output)
+        return feat / feat.norm(dim=-1, keepdim=True)
 
 
 def _get_text_features(model: CLIPModel, proc: CLIPProcessor, texts: list[str]) -> torch.Tensor:
-    txt_in = proc(text=texts, return_tensors="pt", padding=True, truncation=True)
-    text_out = model.text_model(**txt_in)
-    feat = model.text_projection(text_out.pooler_output)
-    return feat / feat.norm(dim=-1, keepdim=True)
+    with torch.inference_mode():
+        txt_in = proc(text=texts, return_tensors="pt", padding=True, truncation=True)
+        text_out = model.text_model(**txt_in)
+        feat = model.text_projection(text_out.pooler_output)
+        return feat / feat.norm(dim=-1, keepdim=True)
 
 
 def _img_score(image: Image.Image, probes: list[str], model: CLIPModel, proc: CLIPProcessor) -> float:
-    with torch.no_grad():
-        img_feat = _get_image_features(model, proc, image)
-        txt_feat = _get_text_features(model, proc, probes)
-        return (img_feat @ txt_feat.T).squeeze(0).reshape(-1).max().item()
+    img_feat = _get_image_features(model, proc, image)
+    txt_feat = _get_text_features(model, proc, probes)
+    return (img_feat @ txt_feat.T).squeeze(0).reshape(-1).max().item()
 
 
 def _txt_score(content: str, probes: list[str], model: CLIPModel, proc: CLIPProcessor) -> float:
-    all_texts = [content[:300]] + probes
-    with torch.no_grad():
-        feats = _get_text_features(model, proc, all_texts)
-        return (feats[0:1] @ feats[1:].T).squeeze(0).reshape(-1).max().item()
+    all_texts = [content] + probes  # processor handles 77-token truncation
+    feats = _get_text_features(model, proc, all_texts)
+    return (feats[0:1] @ feats[1:].T).squeeze(0).reshape(-1).max().item()
 
 
 def get_brain_scores(
@@ -142,9 +145,11 @@ def get_brain_scores(
     images: list[Image.Image] | None = None,
     texts: list[str] | None = None,
 ) -> dict[str, int]:
-    model, proc = _load()
     all_imgs: list[Image.Image] = list(images or []) + ([image] if image else [])
     all_txts: list[str] = list(texts or []) + ([text] if text else [])
+    if not all_imgs and not all_txts:
+        raise ValueError("get_brain_scores requires at least one image or text input")
+    model, proc = _load()
 
     scores: dict[str, int] = {}
     for key, region in REGIONS.items():
