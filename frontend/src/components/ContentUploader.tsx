@@ -42,7 +42,7 @@ export function ContentUploader({ onResult, onError, label }: Props) {
       <Tabs defaultValue="file">
         <TabsList className="w-full">
           <TabsTrigger value="file" className="flex-1"><Upload className="w-4 h-4 mr-1" />File</TabsTrigger>
-          <TabsTrigger value="youtube" className="flex-1"><Link className="w-4 h-4 mr-1" />YouTube</TabsTrigger>
+          <TabsTrigger value="youtube" className="flex-1"><Link className="w-4 h-4 mr-1" />Video URL</TabsTrigger>
           <TabsTrigger value="text" className="flex-1"><FileText className="w-4 h-4 mr-1" />Text</TabsTrigger>
         </TabsList>
 
@@ -68,7 +68,7 @@ export function ContentUploader({ onResult, onError, label }: Props) {
         <TabsContent value="youtube">
           <div className="flex gap-2 mt-2">
             <input type="url" value={ytUrl} onChange={(e) => setYtUrl(e.target.value)}
-              placeholder="https://youtube.com/watch?v=..."
+              placeholder="YouTube, TikTok, Instagram, Twitter/X, Vimeo..."
               className="flex-1 px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary" />
             <Button disabled={!ytUrl || loading} onClick={() => { const f = new FormData(); f.append("youtube_url", ytUrl); submit(f); }}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Analyze"}
