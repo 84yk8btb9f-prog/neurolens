@@ -28,10 +28,10 @@ class ModelManager:
         return self._model is not None
 
     def get(self) -> tuple[Any, Any]:
-        self._last_used = time.monotonic()
         with self._lock:
             if self._model is None:
                 self._model, self._processor = _load_vlm(MODEL_ID)
+            self._last_used = time.monotonic()
             model, processor = self._model, self._processor
         return model, processor
 
