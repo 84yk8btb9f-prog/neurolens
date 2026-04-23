@@ -1,8 +1,11 @@
 from __future__ import annotations
 import json
+import logging
 import re
 from PIL import Image
 from app.model_manager import get_manager
+
+_log = logging.getLogger(__name__)
 
 REGIONS: dict[str, dict] = {
     "visual_cortex": {
@@ -70,6 +73,17 @@ Return ONLY valid JSON with exactly these 8 keys, no other text:
 
 _FALLBACK = {k: 50 for k in REGIONS}
 
+_config_cache: dict | None = None
+
+
+def _get_config() -> dict:
+    global _config_cache
+    if _config_cache is None:
+        from mlx_vlm.utils import load_config
+        from app.model_manager import MODEL_ID
+        _config_cache = load_config(MODEL_ID)
+    return _config_cache
+
 
 def _parse_scores(raw: str) -> dict[str, int]:
     text = raw.strip()
@@ -80,25 +94,28 @@ def _parse_scores(raw: str) -> dict[str, int]:
     # Find first JSON object in the output
     obj = re.search(r"\{[^{}]+\}", text, re.DOTALL)
     if not obj:
+        _log.warning("_parse_scores: no JSON found in VLM output: %r", raw[:200])
         return dict(_FALLBACK)
     try:
         data = json.loads(obj.group())
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        _log.warning("_parse_scores: JSON decode failed (%s): %r", exc, raw[:200])
         return dict(_FALLBACK)
     result: dict[str, int] = {}
     for key in REGIONS:
         raw_val = data.get(key, 50)
-        result[key] = max(0, min(100, int(round(float(raw_val)))))
+        try:
+            result[key] = max(0, min(100, int(round(float(raw_val)))))
+        except (ValueError, TypeError):
+            result[key] = 50
     return result
 
 
 def _generate_scores(model, processor, prompt: str, image: Image.Image | None = None) -> str:
     from mlx_vlm import generate
     from mlx_vlm.prompt_utils import apply_chat_template
-    from mlx_vlm.utils import load_config
-    from app.model_manager import MODEL_ID
 
-    config = load_config(MODEL_ID)
+    config = _get_config()
     formatted = apply_chat_template(
         processor, config, prompt,
         num_images=1 if image else 0,
