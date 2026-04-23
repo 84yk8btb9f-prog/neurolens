@@ -4,6 +4,7 @@ python-multipart==0.0.9
 mlx>=0.18.0
 mlx-vlm>=0.4.4,<0.5.0
 torch>=2.4.0
+torchvision>=0.19.0
 Pillow==10.4.0
 openai-whisper>=20231117
 yt-dlp>=2026.3.17

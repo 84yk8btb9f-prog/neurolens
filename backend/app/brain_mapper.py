@@ -123,7 +123,8 @@ def _generate_scores(model, processor, prompt: str, image: Image.Image | None = 
     kwargs: dict = {"max_tokens": 256, "verbose": False}
     if image is not None:
         kwargs["image"] = image
-    return generate(model, processor, formatted, **kwargs)
+    result = generate(model, processor, formatted, **kwargs)
+    return getattr(result, "text", str(result))
 
 
 def _score_image(model, processor, image: Image.Image) -> dict[str, int]:
