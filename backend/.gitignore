@@ -6,3 +6,10 @@ __pycache__/
 dist/
 build/
 .env
+*.pt
+*.pth
+*.onnx
+*.log
+.DS_Store
+models/
+weights/
