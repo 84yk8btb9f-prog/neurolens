@@ -2,7 +2,6 @@ from __future__ import annotations
 import os
 import subprocess
 import cv2
-import numpy as np
 from PIL import Image
 from app.brain_mapper import get_brain_scores, REGIONS
 from app.whisper_manager import get_whisper_manager
