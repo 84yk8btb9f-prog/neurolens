@@ -3,10 +3,16 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _disable_memory_guard():
-    """Tests don't respect the production memory guard — they mock the loader
-    and may run on machines where the VLM is already resident in RAM."""
-    from app.model_manager import _manager
-    original = _manager._min_available_gb
-    _manager._min_available_gb = 0
+    """Tests don't respect the production memory guard."""
+    from app.model_manager import _manager as vlm_manager
+    original_vlm = vlm_manager._min_available_gb
+    vlm_manager._min_available_gb = 0
+
+    from app.tribe_manager import _manager as tribe_manager
+    original_tribe = tribe_manager._min_available_gb
+    tribe_manager._min_available_gb = 0
+
     yield
-    _manager._min_available_gb = original
+
+    vlm_manager._min_available_gb = original_vlm
+    tribe_manager._min_available_gb = original_tribe
