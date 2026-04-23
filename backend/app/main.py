@@ -11,6 +11,7 @@ from app.content_processor import route_content
 from app.recommendation_engine import get_recommendations
 from app.model_manager import get_manager, LowMemoryError
 from app.whisper_manager import get_whisper_manager
+from app.tribe_manager import get_tribe_manager
 
 app = FastAPI(title="NeuroPulse API", version="1.0.0")
 app.add_middleware(
@@ -111,6 +112,17 @@ def whisper_status():
 @app.post("/whisper/unload")
 def whisper_unload():
     did_unload = get_whisper_manager().unload()
+    return {"status": "unloaded" if did_unload else "already_unloaded"}
+
+
+@app.get("/tribe/status")
+def tribe_status():
+    return get_tribe_manager().status()
+
+
+@app.post("/tribe/unload")
+def tribe_unload():
+    did_unload = get_tribe_manager().unload()
     return {"status": "unloaded" if did_unload else "already_unloaded"}
 
 

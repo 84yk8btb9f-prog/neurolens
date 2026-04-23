@@ -104,3 +104,24 @@ async def test_whisper_unload_endpoint():
         resp = await c.post("/whisper/unload")
     assert resp.status_code == 200
     assert resp.json()["status"] in ("unloaded", "already_unloaded")
+
+
+@pytest.mark.asyncio
+async def test_tribe_status_endpoint():
+    from app.main import app
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/tribe/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "available" in data
+    assert "loaded" in data
+    assert "idle_timeout_seconds" in data
+
+
+@pytest.mark.asyncio
+async def test_tribe_unload_endpoint():
+    from app.main import app
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.post("/tribe/unload")
+    assert resp.status_code == 200
+    assert resp.json()["status"] in ("unloaded", "already_unloaded")
