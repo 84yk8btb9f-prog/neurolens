@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Cpu, X } from "lucide-react";
 
 interface StatusData {
@@ -13,11 +13,16 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export function ModelStatusBar() {
   const [status, setStatus] = useState<StatusData | null>(null);
   const [unloading, setUnloading] = useState(false);
+  const unloadingRef = useRef(false);
 
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch(`${BASE}/model/status`);
-      if (res.ok) setStatus(await res.json());
+      if (res.ok) {
+        setStatus(await res.json());
+      } else {
+        setStatus(null);
+      }
     } catch {
       // backend not running — silently ignore
     }
@@ -30,11 +35,20 @@ export function ModelStatusBar() {
   }, [fetchStatus]);
 
   async function handleUnload() {
+    if (unloadingRef.current) return;
+    unloadingRef.current = true;
     setUnloading(true);
     try {
-      await fetch(`${BASE}/model/unload`, { method: "POST" });
-      await fetchStatus();
+      const res = await fetch(`${BASE}/model/unload`, { method: "POST" });
+      if (res.ok) {
+        await fetchStatus();
+      } else {
+        console.error("Unload failed:", res.status);
+      }
+    } catch {
+      // backend not reachable
     } finally {
+      unloadingRef.current = false;
       setUnloading(false);
     }
   }
@@ -48,7 +62,7 @@ export function ModelStatusBar() {
           ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400"
           : "bg-zinc-50 border-zinc-200 text-zinc-500 dark:bg-zinc-900/50 dark:border-zinc-700 dark:text-zinc-500"
       }`}>
-        <Cpu className="w-3.5 h-3.5 shrink-0" />
+        <Cpu className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
         <span className="font-medium">
           {status.loaded ? "Model in memory" : "Model unloaded"}
         </span>
@@ -61,10 +75,10 @@ export function ModelStatusBar() {
           <button
             onClick={handleUnload}
             disabled={unloading}
+            aria-label="Unload model to free RAM"
             className="ml-1 hover:opacity-70 transition-opacity disabled:opacity-40"
-            title="Unload model to free RAM"
           >
-            <X className="w-3 h-3" />
+            <X className="w-3 h-3" aria-hidden="true" />
           </button>
         )}
       </div>
