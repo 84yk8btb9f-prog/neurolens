@@ -1,8 +1,8 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Upload, Link, FileText, Loader2 } from "lucide-react";
+import { Upload, Link, FileText, Loader2, X } from "lucide-react";
 
 interface Props {
   onResult: (result: unknown) => void;
@@ -10,24 +10,58 @@ interface Props {
   label?: string;
 }
 
+const STAGES = [
+  { after: 0,   label: "Sending…" },
+  { after: 4,   label: "Processing content…" },
+  { after: 15,  label: "Loading AI model (first run takes ~2 min)…" },
+  { after: 60,  label: "Model loaded — running analysis…" },
+  { after: 120, label: "Almost done…" },
+];
+
 export function ContentUploader({ onResult, onError, label }: Props) {
   const [loading, setLoading] = useState(false);
+  const [loadingLabel, setLoadingLabel] = useState("Sending…");
   const [ytUrl, setYtUrl] = useState("");
   const [txt, setTxt] = useState("");
   const [dragging, setDragging] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
 
   const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+  function clearTimers() {
+    timerRef.current.forEach(clearTimeout);
+    timerRef.current = [];
+  }
+
+  function cancel() {
+    abortRef.current?.abort();
+    clearTimers();
+    setLoading(false);
+  }
+
+  useEffect(() => () => { cancel(); }, []);
+
   async function submit(form: FormData) {
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
+    setLoadingLabel(STAGES[0].label);
+    clearTimers();
+    STAGES.slice(1).forEach(({ after, label: lbl }) => {
+      timerRef.current.push(setTimeout(() => setLoadingLabel(lbl), after * 1000));
+    });
     try {
-      const res = await fetch(`${BASE}/analyze`, { method: "POST", body: form });
+      const res = await fetch(`${BASE}/analyze`, { method: "POST", body: form, signal: controller.signal });
       if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
       onResult(await res.json());
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       onError(e instanceof Error ? e.message : "Unknown error");
     } finally {
+      clearTimers();
       setLoading(false);
+      abortRef.current = null;
     }
   }
 
@@ -71,7 +105,7 @@ export function ContentUploader({ onResult, onError, label }: Props) {
               placeholder="YouTube, TikTok, Instagram, Twitter/X, Vimeo..."
               className="flex-1 px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary" />
             <Button disabled={!ytUrl || loading} onClick={() => { const f = new FormData(); f.append("youtube_url", ytUrl); submit(f); }}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Analyze"}
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />{loadingLabel}</> : "Analyze"}
             </Button>
           </div>
         </TabsContent>
@@ -83,10 +117,26 @@ export function ContentUploader({ onResult, onError, label }: Props) {
             className="w-full px-3 py-2 text-sm border rounded-lg bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary mt-2" />
           <Button disabled={!txt.trim() || loading} className="w-full mt-2"
             onClick={() => { const f = new FormData(); f.append("text_content", txt); submit(f); }}>
-            {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Analyzing...</> : "Analyze Brain Response"}
+            {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />{loadingLabel}</> : "Analyze Brain Response"}
           </Button>
         </TabsContent>
       </Tabs>
+
+      {loading && (
+        <div className="mt-3 flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-muted/40">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+            <span>{loadingLabel}</span>
+          </div>
+          <button
+            onClick={cancel}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }
