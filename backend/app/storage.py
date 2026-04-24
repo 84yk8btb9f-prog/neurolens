@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json
-import os
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 _DEFAULT_DB = Path(__file__).parent / "data" / "projects.db"
@@ -12,6 +12,7 @@ class ProjectStorage:
         self._path = str(db_path)
 
     def init(self) -> None:
+        Path(self._path).parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS projects (
@@ -60,10 +61,18 @@ class ProjectStorage:
             cur = conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
             return cur.rowcount > 0
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         conn = sqlite3.connect(self._path)
         conn.execute("PRAGMA journal_mode=WAL")
-        return conn
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
 
 _store = ProjectStorage()
