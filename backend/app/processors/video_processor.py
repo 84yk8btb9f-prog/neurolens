@@ -8,11 +8,9 @@ from app.brain_mapper import REGIONS
 from app.whisper_manager import get_whisper_manager
 from app.tribe_scorer import score_video
 from app.tribe_manager import get_tribe_manager
+from app.atlas_mapper import CORTICAL_REGIONS as _TRIBE_CORTICAL
 
-_TRIBE_CORTICAL = frozenset(
-    ["visual_cortex", "face_social", "language_areas", "motor_action", "prefrontal"]
-)
-_VLM_SUBCORTICAL = frozenset(["amygdala", "hippocampus", "reward_circuit"])
+_VLM_SUBCORTICAL = frozenset(REGIONS) - _TRIBE_CORTICAL
 
 
 def extract_frames(video_path: str, fps: float = 0.5, max_frames: int = 24) -> list[Image.Image]:
@@ -50,9 +48,7 @@ def process_video(file_path: str) -> dict:
     transcript = transcribe_audio(file_path)
 
     tribe_scores = score_video(file_path)
-
-    if tribe_scores is not None:
-        get_tribe_manager().unload()
+    get_tribe_manager().unload()
 
     if not frames and not transcript.strip():
         vlm_scores: dict[str, int] = {k: 0 for k in REGIONS}
@@ -64,8 +60,8 @@ def process_video(file_path: str) -> dict:
 
     if tribe_scores is not None:
         scores: dict[str, int] = {
-            **{k: tribe_scores[k] for k in _TRIBE_CORTICAL},
-            **{k: vlm_scores[k] for k in _VLM_SUBCORTICAL},
+            **{k: tribe_scores.get(k, vlm_scores.get(k, 0)) for k in _TRIBE_CORTICAL},
+            **{k: vlm_scores.get(k, 0) for k in _VLM_SUBCORTICAL},
         }
     else:
         scores = vlm_scores

@@ -55,11 +55,11 @@ class WhisperManager:
         with self._lock:
             loaded = self._model is not None
             last_used = self._last_used
-        idle_for = time.monotonic() - last_used if last_used else None
+        idle_for = (time.monotonic() - last_used) if last_used > 0.0 else None
         return {
             "loaded": loaded,
             "idle_timeout_seconds": self._idle_timeout,
-            "idle_for_seconds": round(idle_for, 1) if idle_for else None,
+            "idle_for_seconds": round(idle_for, 1) if idle_for is not None else None,
         }
 
     def _idle_watchdog(self) -> None:
