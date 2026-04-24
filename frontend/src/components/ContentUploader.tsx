@@ -27,6 +27,8 @@ export function ContentUploader({ onResult, onError, label, persona }: Props) {
   const [dragging, setDragging] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const personaRef = useRef(persona);
+  personaRef.current = persona;
 
   const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -41,11 +43,15 @@ export function ContentUploader({ onResult, onError, label, persona }: Props) {
     setLoading(false);
   }
 
-  useEffect(() => () => { cancel(); }, []);
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    timerRef.current.forEach(clearTimeout);
+  }, []);
 
   async function submit(form: FormData) {
-    if (persona && persona !== "default") {
-      form.append("persona", persona);
+    const currentPersona = personaRef.current;
+    if (currentPersona && currentPersona !== "default") {
+      form.append("persona", currentPersona);
     }
     const controller = new AbortController();
     abortRef.current = controller;
@@ -76,8 +82,7 @@ export function ContentUploader({ onResult, onError, label, persona }: Props) {
 
   const handleFile = useCallback((file: File) => {
     const f = new FormData(); f.append("file", file); submit(f);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // submit reads personaRef.current — always current value, no stale closure
 
   return (
     <div className="w-full max-w-xl">
