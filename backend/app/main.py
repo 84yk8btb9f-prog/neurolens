@@ -27,8 +27,15 @@ def _enrich(result: dict) -> dict:
     return {
         **result,
         "recommendations": [
-            {"region_key": r.region_key, "region_name": r.region_name,
-             "score": r.score, "priority": r.priority, "message": r.message}
+            {
+                "region_key": r.region_key,
+                "region_name": r.region_name,
+                "score": r.score,
+                "priority": r.priority,
+                "message": r.message,
+                "details": r.details,
+                "steps": r.steps,
+            }
             for r in recs
         ],
     }
@@ -42,17 +49,20 @@ async def analyze(
 ):
     if not file and not youtube_url and not text_content:
         raise HTTPException(status_code=422, detail="Provide file, youtube_url, or text_content")
-    with tempfile.TemporaryDirectory() as tmp:
-        fp = None
-        if file and file.filename:
-            fp = os.path.join(tmp, pathlib.Path(file.filename).name)
-            with open(fp, "wb") as f:
-                f.write(await file.read())
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None, functools.partial(route_content, file_path=fp, youtube_url=youtube_url, text_content=text_content, tmp_dir=tmp)
-        )
-    return _enrich(result)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            fp = None
+            if file and file.filename:
+                fp = os.path.join(tmp, pathlib.Path(file.filename).name)
+                with open(fp, "wb") as f:
+                    f.write(await file.read())
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(
+                None, functools.partial(route_content, file_path=fp, youtube_url=youtube_url, text_content=text_content, tmp_dir=tmp)
+            )
+        return _enrich(result)
+    except LowMemoryError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
 
 @app.post("/compare")
@@ -78,13 +88,16 @@ async def compare(
             raise HTTPException(status_code=422, detail="Provide at least one input for 'a'")
         if not pb and not youtube_url_b and not text_b:
             raise HTTPException(status_code=422, detail="Provide at least one input for 'b'")
-        loop = asyncio.get_running_loop()
-        ra = await loop.run_in_executor(
-            None, functools.partial(route_content, file_path=pa, youtube_url=youtube_url_a, text_content=text_a, tmp_dir=tmp)
-        )
-        rb = await loop.run_in_executor(
-            None, functools.partial(route_content, file_path=pb, youtube_url=youtube_url_b, text_content=text_b, tmp_dir=tmp)
-        )
+        try:
+            loop = asyncio.get_running_loop()
+            ra = await loop.run_in_executor(
+                None, functools.partial(route_content, file_path=pa, youtube_url=youtube_url_a, text_content=text_a, tmp_dir=tmp)
+            )
+            rb = await loop.run_in_executor(
+                None, functools.partial(route_content, file_path=pb, youtube_url=youtube_url_b, text_content=text_b, tmp_dir=tmp)
+            )
+        except LowMemoryError as e:
+            raise HTTPException(status_code=503, detail=str(e))
     return {"a": _enrich(ra), "b": _enrich(rb)}
 
 

@@ -26,7 +26,6 @@ export function ContentUploader({ onResult, onError, label }: Props) {
   const [dragging, setDragging] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const abortRef = useRef<AbortController | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -82,22 +81,21 @@ export function ContentUploader({ onResult, onError, label }: Props) {
         </TabsList>
 
         <TabsContent value="file">
-          <div
+          <label
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+            className={`block border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
           >
             <Upload className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               Drop image, video, or PDF<br />
               <span className="text-xs">JPG PNG MP4 MOV PDF supported</span>
             </p>
-            <input ref={fileInputRef} type="file" className="hidden"
+            <input type="file" className="hidden"
               accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.avi,.pdf"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-          </div>
+          </label>
         </TabsContent>
 
         <TabsContent value="youtube">
