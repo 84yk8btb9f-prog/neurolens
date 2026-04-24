@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ContentUploader } from "@/components/ContentUploader";
+import { PersonaSelector } from "@/components/PersonaSelector";
 import { BrainRadarChart } from "@/components/BrainRadarChart";
 import { RegionCard } from "@/components/RegionCard";
 import { RecommendationPanel } from "@/components/RecommendationPanel";
 import { SplitSquareHorizontal, Zap } from "lucide-react";
 import type { AnalysisResult, BrainScores } from "@/types/analysis";
 
-function CompareView() {
+function CompareView({ persona }: { persona: string }) {
   const [a, setA] = useState<AnalysisResult | null>(null);
   const [b, setB] = useState<AnalysisResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -25,11 +26,13 @@ function CompareView() {
             label="Content A"
             onResult={(r) => setA(r as AnalysisResult)}
             onError={setErr}
+            persona={persona}
           />
           <ContentUploader
             label="Content B"
             onResult={(r) => setB(r as AnalysisResult)}
             onError={setErr}
+            persona={persona}
           />
         </div>
       )}
@@ -75,6 +78,7 @@ function CompareView() {
 export default function Home() {
   const router = useRouter();
   const [err, setErr] = useState<string | null>(null);
+  const [persona, setPersona] = useState("default");
 
   function handleResult(result: unknown) {
     sessionStorage.setItem("np_result", JSON.stringify(result));
@@ -91,6 +95,8 @@ export default function Home() {
         </p>
       </div>
 
+      <PersonaSelector value={persona} onChange={setPersona} />
+
       <Tabs defaultValue="analyze" className="w-full max-w-5xl">
         <TabsList className="mb-8 mx-auto flex w-fit">
           <TabsTrigger value="analyze" className="gap-2">
@@ -104,13 +110,13 @@ export default function Home() {
         </TabsList>
 
         <TabsContent value="analyze" className="flex flex-col items-center">
-          <ContentUploader onResult={handleResult} onError={setErr} />
+          <ContentUploader onResult={handleResult} onError={setErr} persona={persona} />
           {err && <p className="mt-4 text-sm text-rose-500 text-center max-w-sm">{err}</p>}
           <p className="mt-8 text-xs text-muted-foreground">Runs fully local — your content never leaves your machine.</p>
         </TabsContent>
 
         <TabsContent value="compare">
-          <CompareView />
+          <CompareView persona={persona} />
         </TabsContent>
       </Tabs>
     </main>

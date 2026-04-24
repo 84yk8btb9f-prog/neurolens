@@ -8,6 +8,7 @@ interface Props {
   onResult: (result: unknown) => void;
   onError: (msg: string) => void;
   label?: string;
+  persona?: string;
 }
 
 const STAGES = [
@@ -18,7 +19,7 @@ const STAGES = [
   { after: 120, label: "Almost done…" },
 ];
 
-export function ContentUploader({ onResult, onError, label }: Props) {
+export function ContentUploader({ onResult, onError, label, persona }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadingLabel, setLoadingLabel] = useState("Sending…");
   const [ytUrl, setYtUrl] = useState("");
@@ -43,6 +44,9 @@ export function ContentUploader({ onResult, onError, label }: Props) {
   useEffect(() => () => { cancel(); }, []);
 
   async function submit(form: FormData) {
+    if (persona && persona !== "default") {
+      form.append("persona", persona);
+    }
     const controller = new AbortController();
     abortRef.current = controller;
     setLoading(true);
