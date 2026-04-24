@@ -7,11 +7,13 @@ import pathlib
 import tempfile
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from app.content_processor import route_content
 from app.recommendation_engine import get_recommendations
 from app.model_manager import get_manager, LowMemoryError
 from app.whisper_manager import get_whisper_manager
 from app.tribe_manager import get_tribe_manager
+from app.storage import get_storage
 
 app = FastAPI(title="NeuroPulse API", version="1.0.0")
 app.add_middleware(
@@ -139,6 +141,38 @@ def tribe_status():
 def tribe_unload():
     did_unload = get_tribe_manager().unload()
     return {"status": "unloaded" if did_unload else "already_unloaded"}
+
+
+class SaveProjectRequest(BaseModel):
+    name: str
+    result: dict
+
+
+@app.get("/projects")
+def list_projects():
+    return get_storage().list_all()
+
+
+@app.post("/projects")
+def save_project(req: SaveProjectRequest):
+    pid = get_storage().save(req.name, req.result)
+    return {"id": pid}
+
+
+@app.get("/projects/{project_id}")
+def get_project(project_id: int):
+    project = get_storage().get(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+@app.delete("/projects/{project_id}")
+def delete_project(project_id: int):
+    deleted = get_storage().delete(project_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {"status": "deleted"}
 
 
 @app.exception_handler(LowMemoryError)
