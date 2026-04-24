@@ -1,5 +1,5 @@
 from app.personas import get_persona, list_personas, apply_persona
-from app.recommendation_engine import Recommendation
+from app.recommendation_engine import Recommendation, get_recommendations
 
 
 def _rec(region_key: str, priority: str = "medium") -> Recommendation:
@@ -63,3 +63,24 @@ def test_apply_persona_region_not_in_overlay_no_extra_steps():
     rec = _rec("hippocampus")
     apply_persona("hormozi", [rec])
     assert len(rec.steps) >= 2
+
+
+_SCORES = {
+    "visual_cortex": 40, "face_social": 40, "amygdala": 40,
+    "hippocampus": 40, "language_areas": 40, "reward_circuit": 40,
+    "prefrontal": 40, "motor_action": 40,
+}
+
+
+def test_get_recommendations_with_persona():
+    recs_default = get_recommendations(_SCORES, persona_key=None)
+    recs_hormozi = get_recommendations(_SCORES, persona_key="hormozi")
+    assert len(recs_default) == len(recs_hormozi)
+    amygdala_default = next(r for r in recs_default if r.region_key == "amygdala")
+    amygdala_hormozi = next(r for r in recs_hormozi if r.region_key == "amygdala")
+    assert len(amygdala_hormozi.steps) > len(amygdala_default.steps)
+
+
+def test_get_recommendations_unknown_persona_no_crash():
+    recs = get_recommendations(_SCORES, persona_key="nonexistent_persona")
+    assert len(recs) == 8

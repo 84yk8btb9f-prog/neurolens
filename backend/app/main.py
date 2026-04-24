@@ -26,8 +26,8 @@ app.add_middleware(
 )
 
 
-def _enrich(result: dict) -> dict:
-    recs = get_recommendations(result["scores"])
+def _enrich(result: dict, persona_key: str | None = None) -> dict:
+    recs = get_recommendations(result["scores"], persona_key=persona_key)
     return {
         **result,
         "recommendations": [
@@ -50,6 +50,7 @@ async def analyze(
     file: UploadFile | None = File(None),
     youtube_url: str | None = Form(None),
     text_content: str | None = Form(None),
+    persona: str | None = Form(None),
 ):
     if not file and not youtube_url and not text_content:
         raise HTTPException(status_code=422, detail="Provide file, youtube_url, or text_content")
@@ -64,7 +65,7 @@ async def analyze(
             result = await loop.run_in_executor(
                 None, functools.partial(route_content, file_path=fp, youtube_url=youtube_url, text_content=text_content, tmp_dir=tmp)
             )
-        return _enrich(result)
+        return _enrich(result, persona_key=persona)
     except LowMemoryError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
@@ -173,6 +174,12 @@ def delete_project(project_id: int):
     if not deleted:
         raise HTTPException(status_code=404, detail="Project not found")
     return {"status": "deleted"}
+
+
+@app.get("/personas")
+def personas():
+    from app.personas import list_personas as _list_personas
+    return _list_personas()
 
 
 @app.exception_handler(LowMemoryError)

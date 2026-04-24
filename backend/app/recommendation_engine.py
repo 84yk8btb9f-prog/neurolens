@@ -1,5 +1,6 @@
 # backend/app/recommendation_engine.py
 from dataclasses import dataclass, field
+from app.personas import apply_persona
 
 
 @dataclass
@@ -241,7 +242,7 @@ _ADVICE: dict[str, dict[str, dict]] = {
 }
 
 
-def get_recommendations(scores: dict[str, int]) -> list[Recommendation]:
+def get_recommendations(scores: dict[str, int], persona_key: str | None = None) -> list[Recommendation]:
     from app.brain_mapper import REGIONS
 
     unknown = set(scores) - _ADVICE.keys()
@@ -270,4 +271,5 @@ def get_recommendations(scores: dict[str, int]) -> list[Recommendation]:
         ))
 
     recs.sort(key=lambda r: ({"high": 0, "medium": 1, "ok": 2}[r.priority], r.score))
+    apply_persona(persona_key, recs)
     return recs
