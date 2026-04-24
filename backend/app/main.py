@@ -19,6 +19,8 @@ app.add_middleware(
     allow_origins=["http://localhost:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
+    expose_headers=["*"],
 )
 
 
@@ -145,4 +147,5 @@ def low_memory_handler(_request, exc: LowMemoryError):
     return JSONResponse(
         status_code=503,
         content={"detail": str(exc), "error": "low_memory"},
+        headers={"Access-Control-Allow-Origin": "http://localhost:3000"},
     )

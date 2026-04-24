@@ -92,7 +92,7 @@ export function ContentUploader({ onResult, onError, label }: Props) {
               Drop image, video, or PDF<br />
               <span className="text-xs">JPG PNG MP4 MOV PDF supported</span>
             </p>
-            <input type="file" className="hidden"
+            <input type="file" className="sr-only"
               accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.avi,.pdf"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
           </label>
