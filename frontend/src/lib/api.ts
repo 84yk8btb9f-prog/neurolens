@@ -1,5 +1,5 @@
 // frontend/src/lib/api.ts
-import type { AnalysisResult, CompareResult } from "@/types/analysis";
+import type { AnalysisResult, CompareResult, ProjectSummary, Project } from "@/types/analysis";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -30,3 +30,31 @@ export const comparePair = (a: FormData, b: FormData): Promise<CompareResult> =>
   b.forEach((v, k) => f.append(k + "_b", v));
   return post("/compare", f) as Promise<CompareResult>;
 };
+
+async function json_get(path: string): Promise<unknown> {
+  const res = await fetch(`${BASE}${path}`);
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+async function json_post(path: string, body: unknown): Promise<unknown> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+export const listProjects = (): Promise<ProjectSummary[]> =>
+  json_get("/projects") as Promise<ProjectSummary[]>;
+
+export const saveProject = (name: string, result: AnalysisResult): Promise<{ id: number }> =>
+  json_post("/projects", { name, result }) as Promise<{ id: number }>;
+
+export const getProject = (id: number): Promise<Project> =>
+  json_get(`/projects/${id}`) as Promise<Project>;
+
+export const deleteProject = (id: number): Promise<void> =>
+  fetch(`${BASE}/projects/${id}`, { method: "DELETE" }).then(() => undefined);

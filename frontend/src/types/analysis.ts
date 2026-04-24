@@ -31,3 +31,14 @@ export interface CompareResult {
   a: AnalysisResult;
   b: AnalysisResult;
 }
+
+export interface ProjectSummary {
+  id: number;
+  name: string;
+  type: string;
+  created_at: string;
+}
+
+export interface Project extends ProjectSummary {
+  result: AnalysisResult;
+}
