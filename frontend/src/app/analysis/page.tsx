@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { BrainRadarChart } from "@/components/BrainRadarChart";
 import { RegionCard } from "@/components/RegionCard";
 import { RecommendationPanel } from "@/components/RecommendationPanel";
+import { SaveProjectButton } from "@/components/SaveProjectButton";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BarChart2 } from "lucide-react";
+import { ArrowLeft, BarChart2, FolderOpen } from "lucide-react";
 import type { AnalysisResult, BrainScores } from "@/types/analysis";
 
 export default function AnalysisPage() {
@@ -25,13 +26,19 @@ export default function AnalysisPage() {
 
   return (
     <main className="min-h-screen px-4 py-10 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mb-8 flex-wrap">
         <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
           <ArrowLeft className="w-4 h-4 mr-1" /> New
         </Button>
         <Button variant="outline" size="sm" onClick={() => router.push("/compare")}>
           <BarChart2 className="w-4 h-4 mr-1" /> Compare
         </Button>
+        <Button variant="outline" size="sm" onClick={() => router.push("/projects")}>
+          <FolderOpen className="w-4 h-4 mr-1" /> Projects
+        </Button>
+        <div className="ml-auto">
+          <SaveProjectButton result={result} />
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8 mb-8">
