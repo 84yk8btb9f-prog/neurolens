@@ -53,11 +53,16 @@ export function ContentUploader({ onResult, onError, label }: Props) {
     });
     try {
       const res = await fetch(`${BASE}/analyze`, { method: "POST", body: form, signal: controller.signal });
-      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      if (!res.ok) {
+        const body = await res.text();
+        let detail = body;
+        try { detail = JSON.parse(body).detail ?? body; } catch { /* not JSON */ }
+        throw new Error(res.status === 503 ? `Not enough RAM — ${detail}` : detail);
+      }
       onResult(await res.json());
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
-      onError(e instanceof Error ? e.message : "Unknown error");
+      onError(e instanceof Error ? e.message : "Cannot reach the analysis server. Make sure the backend is running.");
     } finally {
       clearTimers();
       setLoading(false);
