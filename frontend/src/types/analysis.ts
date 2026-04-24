@@ -16,6 +16,8 @@ export interface Recommendation {
   score: number;
   priority: "high" | "medium" | "ok";
   message: string;
+  details: string;
+  steps: string[];
 }
 
 export interface AnalysisResult {
