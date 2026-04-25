@@ -16,6 +16,7 @@ from app.whisper_manager import get_whisper_manager
 from app.tribe_manager import get_tribe_manager
 from app.storage import get_storage
 from app.persona_storage import get_persona_storage
+from app.headline import generate_headline
 
 app = FastAPI(title="NeuroPulse API", version="1.0.0")
 app.add_middleware(
@@ -32,6 +33,7 @@ def _enrich(result: dict, persona_key: str | None = None) -> dict:
     recs = get_recommendations(result["scores"], persona_key=persona_key)
     return {
         **result,
+        "headline": generate_headline(result["scores"]),
         "recommendations": [
             {
                 "region_key": r.region_key,
@@ -176,6 +178,22 @@ def delete_project(project_id: int):
     if not deleted:
         raise HTTPException(status_code=404, detail="Project not found")
     return {"status": "deleted"}
+
+
+@app.post("/projects/{project_id}/share")
+def create_share_link(project_id: int):
+    token = get_storage().share(project_id)
+    if token is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {"token": token}
+
+
+@app.get("/share/{token}")
+def get_shared_project(token: str):
+    project = get_storage().get_by_token(token)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Shared project not found")
+    return project
 
 
 class PersonaRequest(BaseModel):

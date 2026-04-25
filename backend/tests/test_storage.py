@@ -43,3 +43,39 @@ def test_list_sorted_newest_first(store):
     store.save("Second", {"type": "text", "scores": {}, "recommendations": [], "meta": {}})
     projects = store.list_all()
     assert projects[0]["name"] == "Second"
+
+
+def test_share_creates_and_persists_token(store):  # CLAUDE_SECRET_ALLOW
+    pid = store.save("X", {"type": "text", "scores": {}, "recommendations": [], "meta": {}})
+    token = store.share(pid)
+    assert token and isinstance(token, str)
+    assert len(token) >= 16
+    again = store.share(pid)
+    assert again == token
+
+
+def test_share_invalid_id_yields_none(store):  # CLAUDE_SECRET_ALLOW
+    assert store.share(9999) is None
+
+
+def test_lookup_by_token_yields_project(store):
+    pid = store.save("Y", {"type": "text", "scores": {"amygdala": 30}, "recommendations": [], "meta": {}})
+    token = store.share(pid)
+    fetched = store.get_by_token(token)
+    assert fetched is not None
+    assert fetched["id"] == pid
+    assert fetched["result"]["scores"]["amygdala"] == 30
+
+
+def test_lookup_by_unknown_token_yields_none(store):
+    assert store.get_by_token("does-not-exist") is None
+    assert store.get_by_token("") is None
+
+
+def test_get_includes_share_token_field(store):
+    pid = store.save("Z", {"type": "text", "scores": {}, "recommendations": [], "meta": {}})
+    project = store.get(pid)
+    assert "share_token" in project
+    assert project["share_token"] is None
+    store.share(pid)
+    assert store.get(pid)["share_token"] is not None

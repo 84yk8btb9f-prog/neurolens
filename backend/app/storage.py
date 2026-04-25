@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import secrets
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -13,6 +14,9 @@ class ProjectStorage:
 
     def init(self) -> None:
         Path(self._path).parent.mkdir(parents=True, exist_ok=True)
+        _conn = sqlite3.connect(self._path)
+        _conn.execute("PRAGMA journal_mode=WAL")
+        _conn.close()
         with self._connect() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS projects (
@@ -23,6 +27,10 @@ class ProjectStorage:
                     result_json TEXT NOT NULL
                 )
             """)
+            cols = {row[1] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
+            if "share_token" not in cols:
+                conn.execute("ALTER TABLE projects ADD COLUMN share_token TEXT")
+                conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_share_token ON projects(share_token)")
 
     def save(self, name: str, result: dict) -> int:
         content_type = result.get("type", "")
@@ -31,7 +39,10 @@ class ProjectStorage:
                 "INSERT INTO projects (name, type, result_json) VALUES (?, ?, ?)",
                 (name, content_type, json.dumps(result)),
             )
-            return cur.lastrowid
+            row_id = cur.lastrowid
+            if row_id is None:
+                raise RuntimeError("INSERT succeeded but returned no row ID")
+            return row_id
 
     def list_all(self) -> list[dict]:
         with self._connect() as conn:
@@ -43,8 +54,50 @@ class ProjectStorage:
     def get(self, project_id: int) -> dict | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT id, name, type, created_at, result_json FROM projects WHERE id = ?",
+                "SELECT id, name, type, created_at, result_json, share_token FROM projects WHERE id = ?",
                 (project_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row[0],
+            "name": row[1],
+            "type": row[2],
+            "created_at": row[3],
+            "result": json.loads(row[4]),
+            "share_token": row[5],
+        }
+
+    def delete(self, project_id: int) -> bool:
+        with self._connect() as conn:
+            cur = conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+            return cur.rowcount > 0
+
+    def share(self, project_id: int) -> str | None:
+        """Generate or return existing share token. Returns None if project not found."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT share_token FROM projects WHERE id = ?", (project_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            existing = row[0]
+            if existing:
+                return existing
+            token = secrets.token_urlsafe(16)
+            conn.execute(
+                "UPDATE projects SET share_token = ? WHERE id = ?",
+                (token, project_id),
+            )
+            return token
+
+    def get_by_token(self, token: str) -> dict | None:
+        if not token:
+            return None
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id, name, type, created_at, result_json FROM projects WHERE share_token = ?",
+                (token,),
             ).fetchone()
         if row is None:
             return None
@@ -56,15 +109,9 @@ class ProjectStorage:
             "result": json.loads(row[4]),
         }
 
-    def delete(self, project_id: int) -> bool:
-        with self._connect() as conn:
-            cur = conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
-            return cur.rowcount > 0
-
     @contextmanager
     def _connect(self):
         conn = sqlite3.connect(self._path)
-        conn.execute("PRAGMA journal_mode=WAL")
         try:
             yield conn
             conn.commit()
@@ -76,7 +123,12 @@ class ProjectStorage:
 
 
 _store = ProjectStorage()
-_store.init()
+try:
+    _store.init()
+except Exception as exc:
+    import logging
+    logging.getLogger(__name__).error("Failed to initialize project storage: %s", exc)
+    raise
 
 
 def get_storage() -> ProjectStorage:

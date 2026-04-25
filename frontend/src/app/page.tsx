@@ -8,8 +8,11 @@ import { PersonaSelector } from "@/components/PersonaSelector";
 import { BrainRadarChart } from "@/components/BrainRadarChart";
 import { RegionCard } from "@/components/RegionCard";
 import { RecommendationPanel } from "@/components/RecommendationPanel";
-import { SplitSquareHorizontal, Zap } from "lucide-react";
+import { SplitSquareHorizontal, Zap, Sparkles, Loader2 } from "lucide-react";
+import { analyzeText } from "@/lib/api";
 import type { AnalysisResult, BrainScores } from "@/types/analysis";
+
+const SAMPLE_AD = `Our software offers comprehensive analytics, dashboards, and customizable reporting tools. Built for modern teams who care about data. Schedule a demo to learn more about our enterprise-grade features.`;
 
 function CompareView({ persona }: { persona: string }) {
   const [a, setA] = useState<AnalysisResult | null>(null);
@@ -79,19 +82,33 @@ export default function Home() {
   const router = useRouter();
   const [err, setErr] = useState<string | null>(null);
   const [persona, setPersona] = useState("default");
+  const [trying, setTrying] = useState(false);
 
   function handleResult(result: unknown) {
     sessionStorage.setItem("np_result", JSON.stringify(result));
     router.push("/analysis");
   }
 
+  async function trySample() {
+    setErr(null);
+    setTrying(true);
+    try {
+      const result = await analyzeText(SAMPLE_AD);
+      handleResult(result);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Sample analysis failed");
+    } finally {
+      setTrying(false);
+    }
+  }
+
   return (
     <main className="min-h-screen flex flex-col items-center px-4 py-16">
-      <div className="text-center mb-10 max-w-xl">
-        <h1 className="text-4xl font-bold tracking-tight mb-3">NeuroPulse</h1>
-        <p className="text-muted-foreground text-lg">
-          Analyze how your marketing content activates the brain.<br />
-          Image, video, YouTube, PDF, or plain text.
+      <div className="text-center mb-10 max-w-2xl">
+        <h1 className="text-5xl font-bold tracking-tight mb-4">NeuroPulse</h1>
+        <p className="text-muted-foreground text-lg leading-relaxed">
+          Drop in any ad — video, image, or copy.
+          See how the brain reacts before you spend a dollar promoting it.
         </p>
       </div>
 
@@ -112,7 +129,21 @@ export default function Home() {
         <TabsContent value="analyze" className="flex flex-col items-center">
           <ContentUploader onResult={handleResult} onError={setErr} persona={persona} />
           {err && <p className="mt-4 text-sm text-rose-500 text-center max-w-sm">{err}</p>}
-          <p className="mt-8 text-xs text-muted-foreground">Runs fully local — your content never leaves your machine.</p>
+          <button
+            onClick={trySample}
+            disabled={trying}
+            className="mt-6 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
+          >
+            {trying ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5" />
+            )}
+            {trying ? "Analyzing sample…" : "Or try with a sample ad copy"}
+          </button>
+          <p className="mt-8 text-xs text-muted-foreground">
+            Runs fully local — your content never leaves your machine.
+          </p>
         </TabsContent>
 
         <TabsContent value="compare">

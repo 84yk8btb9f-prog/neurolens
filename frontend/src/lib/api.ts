@@ -1,5 +1,5 @@
 // frontend/src/lib/api.ts
-import type { AnalysisResult, CompareResult, ProjectSummary, Project, PersonaSummary, PersonaDetail } from "@/types/analysis";
+import type { AnalysisResult, CompareResult, ProjectSummary, Project, PersonaSummary, PersonaDetail, SharedProject } from "@/types/analysis";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -84,3 +84,9 @@ export const updatePersona = (id: number, data: Omit<PersonaDetail, "id">): Prom
 export const deletePersona = (id: number): Promise<void> =>
   fetch(`${BASE}/personas/${id}`, { method: "DELETE" })
     .then(res => { if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`); });
+
+export const shareProject = (id: number): Promise<{ token: string }> =>
+  json_post(`/projects/${id}/share`, {}) as Promise<{ token: string }>;
+
+export const getSharedProject = (token: string): Promise<SharedProject> =>
+  json_get(`/share/${token}`) as Promise<SharedProject>;

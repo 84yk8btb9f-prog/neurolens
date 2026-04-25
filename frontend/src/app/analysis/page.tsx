@@ -5,6 +5,8 @@ import { BrainRadarChart } from "@/components/BrainRadarChart";
 import { RegionCard } from "@/components/RegionCard";
 import { RecommendationPanel } from "@/components/RecommendationPanel";
 import { SaveProjectButton } from "@/components/SaveProjectButton";
+import { ShareButton } from "@/components/ShareButton";
+import { Headline } from "@/components/Headline";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BarChart2, FolderOpen } from "lucide-react";
 import type { AnalysisResult, BrainScores } from "@/types/analysis";
@@ -36,10 +38,13 @@ export default function AnalysisPage() {
         <Button variant="outline" size="sm" onClick={() => router.push("/projects")}>
           <FolderOpen className="w-4 h-4 mr-1" /> Projects
         </Button>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2 flex-wrap">
+          <ShareButton result={result} />
           <SaveProjectButton result={result} />
         </div>
       </div>
+
+      <Headline text={result.headline} />
 
       <div className="grid md:grid-cols-2 gap-8 mb-8">
         <div>

@@ -130,3 +130,48 @@ def test_delete_persona_endpoint(mock_persona_storage, client):
     r = client.delete(f"/personas/{pid}")
     assert r.status_code == 200
     assert client.get(f"/personas/{pid}").status_code == 404
+
+
+_SAMPLE_RESULT = {
+    "type": "text",
+    "scores": {"visual_cortex": 80, "face_social": 70, "amygdala": 60, "hippocampus": 50,
+               "language_areas": 40, "reward_circuit": 30, "prefrontal": 20, "motor_action": 10},
+    "recommendations": [],
+    "meta": {},
+}
+
+
+def test_share_endpoint_returns_token(mock_storage, client):  # CLAUDE_SECRET_ALLOW
+    pid = client.post("/projects", json={"name": "S", "result": _SAMPLE_RESULT}).json()["id"]
+    r = client.post(f"/projects/{pid}/share")
+    assert r.status_code == 200
+    body = r.json()
+    assert "token" in body
+    assert isinstance(body["token"], str) and len(body["token"]) >= 16
+
+
+def test_share_endpoint_missing_project(mock_storage, client):  # CLAUDE_SECRET_ALLOW
+    r = client.post("/projects/9999/share")
+    assert r.status_code == 404
+
+
+def test_get_shared_project_by_token(mock_storage, client):
+    pid = client.post("/projects", json={"name": "Public", "result": _SAMPLE_RESULT}).json()["id"]
+    token = client.post(f"/projects/{pid}/share").json()["token"]
+    r = client.get(f"/share/{token}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name"] == "Public"
+    assert body["result"]["type"] == "text"
+
+
+def test_get_shared_project_unknown_token(mock_storage, client):
+    r = client.get("/share/no-such-token")
+    assert r.status_code == 404
+
+
+def test_share_endpoint_idempotent(mock_storage, client):  # CLAUDE_SECRET_ALLOW
+    pid = client.post("/projects", json={"name": "Idem", "result": _SAMPLE_RESULT}).json()["id"]
+    t1 = client.post(f"/projects/{pid}/share").json()["token"]
+    t2 = client.post(f"/projects/{pid}/share").json()["token"]
+    assert t1 == t2

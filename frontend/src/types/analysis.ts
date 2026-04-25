@@ -25,6 +25,15 @@ export interface AnalysisResult {
   scores: BrainScores;
   recommendations: Recommendation[];
   meta: Record<string, unknown>;
+  headline?: string;
+}
+
+export interface SharedProject {
+  id: number;
+  name: string;
+  type: string;
+  created_at: string;
+  result: AnalysisResult;
 }
 
 export interface CompareResult {
