@@ -1,5 +1,16 @@
+import pytest
+from unittest.mock import patch
+from app.persona_storage import PersonaStorage
 from app.personas import get_persona, list_personas, apply_persona
 from app.recommendation_engine import Recommendation, get_recommendations
+
+
+@pytest.fixture(autouse=True)
+def mock_persona_storage(tmp_path):
+    store = PersonaStorage(str(tmp_path / "test_personas.db"))
+    store.init()
+    with patch("app.personas.get_persona_storage", return_value=store):
+        yield store
 
 
 def _rec(region_key: str, priority: str = "medium") -> Recommendation:
@@ -41,8 +52,8 @@ def test_apply_persona_adds_steps_at_front():
     original_steps = list(rec.steps)
     apply_persona("hormozi", [rec])
     assert len(rec.steps) > len(original_steps)
-    for s in original_steps:
-        assert s in rec.steps
+    # Original steps must be at the tail (persona steps prepended at front)
+    assert rec.steps[-len(original_steps):] == original_steps
 
 
 def test_apply_persona_default_no_change():
@@ -61,8 +72,9 @@ def test_apply_persona_unknown_no_change():
 
 def test_apply_persona_region_not_in_overlay_no_extra_steps():
     rec = _rec("hippocampus")
+    original_steps = list(rec.steps)
     apply_persona("hormozi", [rec])
-    assert len(rec.steps) >= 2
+    assert rec.steps == original_steps
 
 
 _SCORES = {

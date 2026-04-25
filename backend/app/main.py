@@ -4,6 +4,7 @@ import asyncio
 import functools
 import os
 import pathlib
+import sqlite3
 import tempfile
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,7 @@ from app.model_manager import get_manager, LowMemoryError
 from app.whisper_manager import get_whisper_manager
 from app.tribe_manager import get_tribe_manager
 from app.storage import get_storage
+from app.persona_storage import get_persona_storage
 
 app = FastAPI(title="NeuroPulse API", version="1.0.0")
 app.add_middleware(
@@ -176,10 +178,49 @@ def delete_project(project_id: int):
     return {"status": "deleted"}
 
 
+class PersonaRequest(BaseModel):
+    key: str
+    name: str
+    tagline: str
+    step_overlays: dict[str, list[str]]
+
+
 @app.get("/personas")
-def personas():
-    from app.personas import list_personas as _list_personas
-    return _list_personas()
+def list_personas_endpoint():
+    return get_persona_storage().list_all()
+
+
+@app.post("/personas")
+def create_persona(req: PersonaRequest):
+    try:
+        pid = get_persona_storage().save(req.key, req.name, req.tagline, req.step_overlays)
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="Persona key already exists")
+    return {"id": pid}
+
+
+@app.get("/personas/{persona_id}")
+def get_persona_endpoint(persona_id: int):
+    row = get_persona_storage().get_by_id(persona_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Persona not found")
+    return row
+
+
+@app.put("/personas/{persona_id}")
+def update_persona(persona_id: int, req: PersonaRequest):
+    updated = get_persona_storage().update(persona_id, req.key, req.name, req.tagline, req.step_overlays)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Persona not found")
+    return {"status": "updated"}
+
+
+@app.delete("/personas/{persona_id}")
+def delete_persona_endpoint(persona_id: int):
+    deleted = get_persona_storage().delete(persona_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Persona not found")
+    return {"status": "deleted"}
 
 
 @app.exception_handler(LowMemoryError)

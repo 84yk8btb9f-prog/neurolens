@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { listPersonas } from "@/lib/api";
 
 interface PersonaOption {
   key: string;
@@ -13,14 +14,11 @@ interface Props {
   onChange: (key: string) => void;
 }
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
 export function PersonaSelector({ value, onChange }: Props) {
   const [personas, setPersonas] = useState<PersonaOption[]>([]);
 
   useEffect(() => {
-    fetch(`${BASE}/personas`)
-      .then((r) => r.json())
+    listPersonas()
       .then(setPersonas)
       .catch(() => {/* non-critical */});
   }, []);

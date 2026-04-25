@@ -42,3 +42,14 @@ export interface ProjectSummary {
 export interface Project extends ProjectSummary {
   result: AnalysisResult;
 }
+
+export interface PersonaSummary {
+  id: number;
+  key: string;
+  name: string;
+  tagline: string;
+}
+
+export interface PersonaDetail extends PersonaSummary {
+  step_overlays: Record<string, string[]>;
+}

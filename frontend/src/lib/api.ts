@@ -1,5 +1,5 @@
 // frontend/src/lib/api.ts
-import type { AnalysisResult, CompareResult, ProjectSummary, Project } from "@/types/analysis";
+import type { AnalysisResult, CompareResult, ProjectSummary, Project, PersonaSummary, PersonaDetail } from "@/types/analysis";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -58,3 +58,29 @@ export const getProject = (id: number): Promise<Project> =>
 
 export const deleteProject = (id: number): Promise<void> =>
   fetch(`${BASE}/projects/${id}`, { method: "DELETE" }).then(() => undefined);
+
+async function json_put(path: string, body: unknown): Promise<unknown> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+export const listPersonas = (): Promise<PersonaSummary[]> =>
+  json_get("/personas") as Promise<PersonaSummary[]>;
+
+export const getPersona = (id: number): Promise<PersonaDetail> =>
+  json_get(`/personas/${id}`) as Promise<PersonaDetail>;
+
+export const createPersona = (data: Omit<PersonaDetail, "id">): Promise<{ id: number }> =>
+  json_post("/personas", data) as Promise<{ id: number }>;
+
+export const updatePersona = (id: number, data: Omit<PersonaDetail, "id">): Promise<void> =>
+  json_put(`/personas/${id}`, data).then(() => undefined);
+
+export const deletePersona = (id: number): Promise<void> =>
+  fetch(`${BASE}/personas/${id}`, { method: "DELETE" })
+    .then(res => { if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`); });

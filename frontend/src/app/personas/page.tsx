@@ -86,7 +86,6 @@ export default function PersonasPage() {
 
   function cancelEdit() {
     setEditing(null);
-    setError(null);
   }
 
   async function handleSave() {
@@ -113,6 +112,7 @@ export default function PersonasPage() {
         );
       }
       setEditing(null);
+      setForm(emptyForm());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -122,6 +122,7 @@ export default function PersonasPage() {
 
   async function handleDelete(id: number, e: React.MouseEvent) {
     e.stopPropagation();
+    if (!window.confirm("Delete this persona? This cannot be undone.")) return;
     try {
       await deletePersona(id);
       setPersonas((prev) => prev.filter((p) => p.id !== id));
