@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 interface PersonaOption {
   key: string;
@@ -60,6 +61,12 @@ export function PersonaSelector({ value, onChange }: Props) {
           {personas.find((p) => p.key === value)?.tagline}
         </p>
       )}
+      <Link
+        href="/personas"
+        className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+      >
+        Manage personas
+      </Link>
     </div>
   );
 }
