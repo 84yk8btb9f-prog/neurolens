@@ -4,7 +4,8 @@ Drop in any ad — video, image, or copy. See how the brain reacts before you sp
 
 NeuroPulse is an open-source brain-response analysis tool for marketing content. It scores creative across 8 brain regions, gives you actionable recommendations, and lets you analyze content through the lens of well-known direct-response creators.
 
-**Live demo:** <https://neurolens-nine.vercel.app/> (frontend; backend deploy steps below)
+**Live demo:** <https://neurolens-nine.vercel.app/>
+**Backend API:** <https://niksapa-neurolens-backend.hf.space/health>
 
 CPU-only. No GPU. No API keys. No cloud calls when self-hosted.
 
