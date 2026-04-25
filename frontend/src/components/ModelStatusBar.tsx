@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Cpu, Mic, Brain, X } from "lucide-react";
+import { Cpu, Mic, X } from "lucide-react";
 
 interface StatusData {
   loaded: boolean;
@@ -112,14 +112,6 @@ export function ModelStatusBar() {
         icon={<Mic className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
         statusEndpoint="/whisper/status"
         unloadEndpoint="/whisper/unload"
-      />
-      <ModelBadge
-        label="tribe"
-        loadedLabel="TRIBE loaded"
-        unloadedLabel="TRIBE unloaded"
-        icon={<Brain className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
-        statusEndpoint="/tribe/status"
-        unloadEndpoint="/tribe/unload"
       />
     </div>
   );

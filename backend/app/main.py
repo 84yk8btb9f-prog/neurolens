@@ -76,6 +76,17 @@ async def analyze(
         return _enrich(result, persona_key=persona)
     except LowMemoryError as e:
         raise HTTPException(status_code=503, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        import logging, traceback
+        logging.getLogger(__name__).exception("Analyze failed")
+        detail = f"{type(exc).__name__}: {exc}"
+        # Truncate long tracebacks but include the last frame for visibility
+        tb = traceback.format_exc().splitlines()
+        if len(tb) > 6:
+            detail += " | …" + " | ".join(tb[-4:])
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @app.post("/compare")
