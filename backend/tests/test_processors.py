@@ -88,13 +88,66 @@ def test_process_youtube_delegates_to_video(tmp_path):
     from app.processors.youtube_processor import process_youtube
     with mock.patch("app.processors.youtube_processor.download_youtube") as dl, \
          mock.patch("app.processors.youtube_processor.process_video") as pv:
-        dl.return_value = {"video_path": "/tmp/abc.mp4", "title": "Test Ad"}
+        dl.return_value = {"video_path": "/tmp/abc.mp4", "title": "Test Ad", "player_client": "ios"}
         pv.return_value = {"type": "video", "scores": _MOCK_SCORES, "meta": {}}
         out = process_youtube("https://youtube.com/watch?v=x", tmp_dir=str(tmp_path))
     assert out["type"] == "youtube"
     assert out["meta"]["title"] == "Test Ad"
+    assert out["meta"]["player_client"] == "ios"
     dl.assert_called_once()
     pv.assert_called_once()
+
+
+def test_download_youtube_falls_back_through_clients(tmp_path):
+    """First two clients fail with the same SSL error YouTube returns from cloud
+    IPs; the third succeeds. download_youtube should cycle through them."""
+    from app.processors.youtube_processor import download_youtube
+    fake_info = {"id": "abc", "ext": "mp4", "title": "Video"}
+
+    class FakeYDL:
+        instances = 0
+
+        def __init__(self, opts):
+            FakeYDL.instances += 1
+            self.client = opts["extractor_args"]["youtube"]["player_client"][0]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            pass
+
+        def extract_info(self, url, download):
+            if FakeYDL.instances <= 2:
+                raise RuntimeError(f"SSL UNEXPECTED_EOF (client={self.client})")
+            return fake_info
+
+        def prepare_filename(self, info):
+            return os.path.join(str(tmp_path), "abc.mp4")
+
+    import os
+    with mock.patch("app.processors.youtube_processor.yt_dlp.YoutubeDL", FakeYDL):
+        result = download_youtube("https://youtube.com/watch?v=abc", str(tmp_path))
+    assert result["title"] == "Video"
+    assert FakeYDL.instances == 3  # cycled through ios + android, succeeded on web_safari
+
+
+def test_download_youtube_raises_blocked_when_all_clients_fail(tmp_path):
+    from app.processors.youtube_processor import download_youtube, YouTubeBlockedError
+
+    class AlwaysFails:
+        def __init__(self, opts):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *_):
+            pass
+        def extract_info(self, url, download):
+            raise RuntimeError("SSL UNEXPECTED_EOF")
+
+    with mock.patch("app.processors.youtube_processor.yt_dlp.YoutubeDL", AlwaysFails):
+        with pytest.raises(YouTubeBlockedError, match="blocked every download"):
+            download_youtube("https://youtube.com/watch?v=abc", str(tmp_path))
 
 
 def test_process_video_uses_clip_scores(tmp_path):

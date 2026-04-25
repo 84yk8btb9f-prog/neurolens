@@ -81,9 +81,11 @@ async def analyze(
         raise
     except Exception as exc:
         import logging, traceback
+        from app.processors.youtube_processor import YouTubeBlockedError
         logging.getLogger(__name__).exception("Analyze failed")
+        if isinstance(exc, YouTubeBlockedError):
+            raise HTTPException(status_code=502, detail=str(exc))
         detail = f"{type(exc).__name__}: {exc}"
-        # Truncate long tracebacks but include the last frame for visibility
         tb = traceback.format_exc().splitlines()
         if len(tb) > 6:
             detail += " | …" + " | ".join(tb[-4:])
