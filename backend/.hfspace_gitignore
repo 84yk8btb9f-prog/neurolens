@@ -1,0 +1,13 @@
+# Use as the .gitignore for the Hugging Face Space deploy repo.
+# (The source repo's root .gitignore covers the same patterns for normal dev.)
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+app/data/
+*.db
+*.db-shm
+*.db-wal
+.env
+.DS_Store

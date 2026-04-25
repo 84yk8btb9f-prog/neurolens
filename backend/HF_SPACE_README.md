@@ -1,6 +1,5 @@
 ---
 title: NeuroPulse Backend
-emoji: brain
 colorFrom: indigo
 colorTo: blue
 sdk: docker
