@@ -15,7 +15,7 @@ from PIL import Image
 
 _log = logging.getLogger(__name__)
 
-CLIP_MODEL_ID = "openai/clip-vit-base-patch32"
+CLIP_MODEL_ID = "openai/clip-vit-large-patch14"
 
 # Per-region probe texts. Each list captures what *activates* that brain region.
 # CLIP scores the input against every probe; we take the max similarity per region.
@@ -70,12 +70,12 @@ REGION_PROBES: dict[str, list[str]] = {
     ],
 }
 
-# CLIP ViT-B/32 cosine similarities differ by modality:
-#   - image vs probe-text: typically [0.18, 0.32]  (cross-modal, narrower band)
-#   - text  vs probe-text: typically [0.72, 0.88]  (in-modality, much higher band)
+# CLIP ViT-L/14 cosine similarities differ by modality:
+#   - image vs probe-text: typically [0.15, 0.25]  (cross-modal, narrower band)
+#   - text  vs probe-text: typically [0.64, 0.74]  (in-modality, narrower than B/32)
 # Linearly map the modality-appropriate window to [0, 100] and clip.
-_IMAGE_SIM_LOW, _IMAGE_SIM_HIGH = 0.18, 0.32
-_TEXT_SIM_LOW, _TEXT_SIM_HIGH = 0.72, 0.88
+_IMAGE_SIM_LOW, _IMAGE_SIM_HIGH = 0.15, 0.25
+_TEXT_SIM_LOW, _TEXT_SIM_HIGH = 0.64, 0.74
 
 
 def _normalize(sim: float, low: float = _IMAGE_SIM_LOW, high: float = _IMAGE_SIM_HIGH) -> int:

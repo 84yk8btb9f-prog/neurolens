@@ -7,7 +7,7 @@ from typing import Any
 
 _log = logging.getLogger(__name__)
 
-WHISPER_MODEL = "tiny"
+WHISPER_MODEL = "base"
 
 
 def _load_whisper(name: str) -> Any:

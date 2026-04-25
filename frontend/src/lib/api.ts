@@ -90,3 +90,15 @@ export const shareProject = (id: number): Promise<{ token: string }> =>
 
 export const getSharedProject = (token: string): Promise<SharedProject> =>
   json_get(`/share/${token}`) as Promise<SharedProject>;
+
+export interface GeneratedPersona {
+  name: string;
+  tagline: string;
+  step_overlays: Record<string, string[]>;
+}
+
+export const generatePersona = (
+  name: string,
+  source: string,
+): Promise<GeneratedPersona> =>
+  json_post("/personas/generate", { name, source }) as Promise<GeneratedPersona>;

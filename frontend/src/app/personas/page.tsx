@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Pencil, Trash2, Users } from "lucide-react";
-import { listPersonas, getPersona, createPersona, updatePersona, deletePersona } from "@/lib/api";
+import { ArrowLeft, Plus, Pencil, Trash2, Users, Sparkles, Loader2, X } from "lucide-react";
+import { listPersonas, getPersona, createPersona, updatePersona, deletePersona, generatePersona } from "@/lib/api";
 import type { PersonaSummary, PersonaDetail } from "@/types/analysis";
 
 const REGIONS = [
@@ -56,6 +56,11 @@ export default function PersonasPage() {
   const [editing, setEditing] = useState<number | "new" | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [genOpen, setGenOpen] = useState(false);
+  const [genName, setGenName] = useState("");
+  const [genSource, setGenSource] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   useEffect(() => {
     listPersonas()
@@ -120,6 +125,46 @@ export default function PersonasPage() {
     }
   }
 
+  function openGenerator() {
+    setGenName("");
+    setGenSource("");
+    setGenError(null);
+    setGenOpen(true);
+  }
+
+  function closeGenerator() {
+    setGenOpen(false);
+    setGenError(null);
+  }
+
+  async function handleGenerate() {
+    if (!genName.trim() || genSource.trim().length < 50) {
+      setGenError("Provide a creator name and at least a paragraph of their content.");
+      return;
+    }
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const draft = await generatePersona(genName.trim(), genSource.trim());
+      const slug = genName.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      setForm({
+        key: slug,
+        name: draft.name,
+        tagline: draft.tagline,
+        overlays: {
+          ...Object.fromEntries(REGIONS.map((r) => [r.key, ""])),
+          ...stepsToOverlays(draft.step_overlays),
+        },
+      });
+      setEditing("new");
+      setGenOpen(false);
+    } catch (e) {
+      setGenError(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   async function handleDelete(id: number, e: React.MouseEvent) {
     e.stopPropagation();
     if (!window.confirm("Delete this persona? This cannot be undone.")) return;
@@ -143,9 +188,14 @@ export default function PersonasPage() {
           <h1 className="text-2xl font-bold">Creator Personas</h1>
         </div>
         {editing === null && (
-          <Button size="sm" onClick={startNew}>
-            <Plus className="w-4 h-4 mr-1" /> New Persona
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={openGenerator}>
+              <Sparkles className="w-4 h-4 mr-1" /> Generate from text
+            </Button>
+            <Button size="sm" onClick={startNew}>
+              <Plus className="w-4 h-4 mr-1" /> New Persona
+            </Button>
+          </div>
         )}
       </div>
 
@@ -257,6 +307,78 @@ export default function PersonasPage() {
           </div>
         ))}
       </div>
+
+      {genOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm px-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !generating) closeGenerator(); }}
+        >
+          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Generate Persona from Content</h2>
+              </div>
+              <button
+                onClick={closeGenerator}
+                disabled={generating}
+                className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Paste creator content — book excerpts, video transcripts, tweet threads, or a NotebookLM export.
+                The model will extract their tactical playbook and pre-fill the persona form for you to review.
+              </p>
+
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">Creator name</label>
+                <input
+                  type="text"
+                  value={genName}
+                  onChange={(e) => setGenName(e.target.value)}
+                  placeholder="e.g. Alex Hormozi"
+                  disabled={generating}
+                  className="w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">
+                  Source content
+                  <span className="ml-1 opacity-60">({genSource.length.toLocaleString()} chars)</span>
+                </label>
+                <textarea
+                  value={genSource}
+                  onChange={(e) => setGenSource(e.target.value)}
+                  rows={12}
+                  placeholder="Paste book chapters, transcripts, threads, NotebookLM summaries, etc."
+                  disabled={generating}
+                  className="w-full px-3 py-2 text-sm border rounded-lg bg-background resize-none font-mono focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+                />
+              </div>
+
+              {genError && <p className="text-xs text-rose-500">{genError}</p>}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button variant="ghost" size="sm" onClick={closeGenerator} disabled={generating}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleGenerate} disabled={generating}>
+                  {generating ? (
+                    <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Generating…</>
+                  ) : (
+                    <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Persona</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

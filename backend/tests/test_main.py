@@ -175,3 +175,49 @@ def test_share_endpoint_idempotent(mock_storage, client):  # CLAUDE_SECRET_ALLOW
     t1 = client.post(f"/projects/{pid}/share").json()["token"]
     t2 = client.post(f"/projects/{pid}/share").json()["token"]
     assert t1 == t2
+
+
+_GENERATOR_LLM_OUTPUT = """{
+  "visual_cortex": ["bold hook"],
+  "face_social": ["lead with founder"],
+  "amygdala": ["stack value"],
+  "hippocampus": ["story arc"],
+  "language_areas": ["cut filler"],
+  "reward_circuit": ["quantify"],
+  "prefrontal": ["show proof"],
+  "motor_action": ["time-bound CTA"]
+}"""
+
+
+def test_generate_persona_endpoint_happy_path(client):
+    with patch(
+        "app.persona_generator._call_hf_inference",
+        return_value=_GENERATOR_LLM_OUTPUT,
+    ):
+        r = client.post(
+            "/personas/generate",
+            json={"name": "Hormozi", "source": "lorem ipsum dolor " * 50},
+        )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name"] == "Hormozi"
+    assert "amygdala" in body["step_overlays"]
+
+
+def test_generate_persona_endpoint_thin_source_returns_502(client):
+    r = client.post("/personas/generate", json={"name": "X", "source": "tiny"})
+    assert r.status_code == 502
+
+
+def test_generate_persona_endpoint_handles_llm_error(client):
+    from app.persona_generator import PersonaGeneratorError
+    with patch(
+        "app.persona_generator._call_hf_inference",
+        side_effect=PersonaGeneratorError("HF Inference rate limit hit"),
+    ):
+        r = client.post(
+            "/personas/generate",
+            json={"name": "X", "source": "lorem ipsum " * 50},
+        )
+    assert r.status_code == 502
+    assert "rate limit" in r.json()["detail"].lower()

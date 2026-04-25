@@ -25,6 +25,7 @@ def test_every_region_has_at_least_two_probes():
 
 
 def test_normalize_low_clamps_to_zero():
+    # Default window is image: [0.15, 0.25]
     assert _normalize(0.0) == 0
     assert _normalize(0.10) == 0
 
@@ -35,7 +36,8 @@ def test_normalize_high_clamps_to_hundred():
 
 
 def test_normalize_midpoint():
-    assert 49 <= _normalize(0.25) <= 51
+    # Image window midpoint is 0.20; test with explicit window for clarity
+    assert 49 <= _normalize(0.20, 0.15, 0.25) <= 51
 
 
 def test_score_from_embedding_returns_all_eight_regions():  # CLAUDE_SECRET_ALLOW

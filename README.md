@@ -16,6 +16,7 @@ CPU-only. No GPU. No API keys. No cloud calls when self-hosted.
 - See per-region breakdowns and concrete recommendations
 - Compare two pieces of content side-by-side
 - Apply Creator Personas (Hormozi, GaryVee, Brunson, Yadegari, or your own) to layer creator-style tactical steps onto recommendations
+- **Generate personas from content** — paste book excerpts, transcripts, tweet threads, or NotebookLM exports and have an LLM extract the creator's tactical playbook into the 8 brain-region structure
 - Save analyses as named projects, share read-only links
 
 ## What it isn't
@@ -45,9 +46,10 @@ The backend runs as a Docker container; the frontend is a standard Next.js app. 
 1. Create a new Space at <https://huggingface.co/new-space> — pick **Docker** as the SDK
 2. Clone your new Space locally: `git clone https://huggingface.co/spaces/<you>/neurolens-backend`
 3. Copy `backend/Dockerfile`, `backend/requirements.txt`, `backend/app/`, and `backend/HF_SPACE_README.md` (rename to `README.md`) into the Space repo
-4. In the Space settings, add an environment variable:
+4. In the Space settings, add environment variables:
    - `ALLOWED_ORIGINS` = `https://your-frontend.vercel.app`
-5. Push to the Space — it will build and start. First request triggers a CLIP weight download (~150 MB).
+   - `HF_TOKEN` = a HF write token (only needed for the persona generator) — <https://huggingface.co/settings/tokens>
+5. Push to the Space — it will build and start. First request triggers a CLIP weight download (~600 MB for ViT-L/14).
 
 ### Frontend → Vercel (free)
 
@@ -57,9 +59,21 @@ The backend runs as a Docker container; the frontend is a standard Next.js app. 
    - `NEXT_PUBLIC_API_URL` = your HF Space URL (e.g. `https://<you>-neurolens-backend.hf.space`)
 4. Deploy. Done.
 
+## Updating the deployment
+
+```bash
+# Backend changes → push to HF Space (one command)
+bash scripts/deploy-hf.sh
+
+# Frontend changes → just push to GitHub, Vercel auto-deploys
+git push
+```
+
+The HF deploy script syncs `backend/` into your local Space clone at `/tmp/np-space`, commits, and pushes. Set `HF_SPACE_DIR` if you want a different path.
+
 ## How it works
 
-CLIP ViT-B/32 encodes content (images and text) into shared semantic embeddings. Each brain region has 3-4 probe texts describing what activates it; cosine similarity to the best-matching probe gets linearly mapped from a calibrated reference range to 0-100. Whisper transcribes video audio so spoken content also feeds the language/persuasion regions.
+CLIP ViT-L/14 encodes content (images and text) into shared semantic embeddings. Each brain region has 3-4 probe texts describing what activates it; cosine similarity to the best-matching probe gets linearly mapped from a calibrated reference range to 0-100. Whisper transcribes video audio so spoken content also feeds the language/persuasion regions.
 
 Per-region probes live in `backend/app/clip_scorer.py` and are easy to tune. Personas are stored in SQLite and editable from the `/personas` page.
 

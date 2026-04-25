@@ -16,6 +16,7 @@ from app.whisper_manager import get_whisper_manager
 from app.storage import get_storage
 from app.persona_storage import get_persona_storage
 from app.headline import generate_headline
+from app.persona_generator import generate_persona, PersonaGeneratorError
 
 app = FastAPI(title="NeuroPulse API", version="1.0.0")
 
@@ -243,6 +244,20 @@ def delete_persona_endpoint(persona_id: int):
     if not deleted:
         raise HTTPException(status_code=404, detail="Persona not found")
     return {"status": "deleted"}
+
+
+class PersonaGenerateRequest(BaseModel):
+    name: str
+    source: str
+    model: str | None = None
+
+
+@app.post("/personas/generate")
+def generate_persona_endpoint(req: PersonaGenerateRequest):
+    try:
+        return generate_persona(req.name, req.source, model=req.model)
+    except PersonaGeneratorError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
 
 
 @app.exception_handler(LowMemoryError)
