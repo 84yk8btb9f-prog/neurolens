@@ -70,19 +70,20 @@ REGION_PROBES: dict[str, list[str]] = {
     ],
 }
 
-# Empirical reference range for CLIP ViT-B/32 cosine similarities on natural
-# probes. Most real-world max similarities land in roughly [0.18, 0.32]. We
-# linearly map that window to [0, 100] then clip.
-_SIM_LOW = 0.18
-_SIM_HIGH = 0.32
+# CLIP ViT-B/32 cosine similarities differ by modality:
+#   - image vs probe-text: typically [0.18, 0.32]  (cross-modal, narrower band)
+#   - text  vs probe-text: typically [0.72, 0.88]  (in-modality, much higher band)
+# Linearly map the modality-appropriate window to [0, 100] and clip.
+_IMAGE_SIM_LOW, _IMAGE_SIM_HIGH = 0.18, 0.32
+_TEXT_SIM_LOW, _TEXT_SIM_HIGH = 0.72, 0.88
 
 
-def _normalize(sim: float) -> int:
-    if sim <= _SIM_LOW:
+def _normalize(sim: float, low: float = _IMAGE_SIM_LOW, high: float = _IMAGE_SIM_HIGH) -> int:
+    if sim <= low:
         return 0
-    if sim >= _SIM_HIGH:
+    if sim >= high:
         return 100
-    return int(round((sim - _SIM_LOW) / (_SIM_HIGH - _SIM_LOW) * 100))
+    return int(round((sim - low) / (high - low) * 100))
 
 
 def _flatten_probes() -> tuple[list[str], list[tuple[str, int]]]:
@@ -169,7 +170,12 @@ class CLIPScorer:
             features = self._encode_text(inputs)
             return features.cpu().numpy()[0]
 
-    def _score_from_embedding(self, embedding: np.ndarray) -> dict[str, int]:
+    def _score_from_embedding(
+        self,
+        embedding: np.ndarray,
+        low: float = _IMAGE_SIM_LOW,
+        high: float = _IMAGE_SIM_HIGH,
+    ) -> dict[str, int]:
         if self._probe_features is None:
             raise RuntimeError("Probe features not initialized — call load() first")
         sims = self._probe_features @ embedding  # (n_probes,)
@@ -177,15 +183,19 @@ class CLIPScorer:
         for sim, (region, _) in zip(sims, _PROBE_INDEX):
             if sim > per_region[region]:
                 per_region[region] = float(sim)
-        return {region: _normalize(sim) for region, sim in per_region.items()}
+        return {region: _normalize(sim, low, high) for region, sim in per_region.items()}
 
     def score_image(self, image: Image.Image) -> dict[str, int]:
         self.load()
-        return self._score_from_embedding(self._embed_image(image))
+        return self._score_from_embedding(
+            self._embed_image(image), _IMAGE_SIM_LOW, _IMAGE_SIM_HIGH
+        )
 
     def score_text(self, text: str) -> dict[str, int]:
         self.load()
-        return self._score_from_embedding(self._embed_text(text))
+        return self._score_from_embedding(
+            self._embed_text(text), _TEXT_SIM_LOW, _TEXT_SIM_HIGH
+        )
 
 
 _scorer: CLIPScorer | None = None
