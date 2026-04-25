@@ -7,7 +7,7 @@ NeuroPulse is an open-source brain-response analysis tool for marketing content.
 **Live demo:** <https://neurolens-nine.vercel.app/>
 **Backend API:** <https://niksapa-neurolens-backend.hf.space/health>
 
-CPU-only. No GPU. No API keys. No cloud calls when self-hosted.
+CPU-only. No GPU. Free and open source — use the hosted demo above, or self-host for full privacy (no third-party calls).
 
 ## What it does
 
@@ -114,7 +114,7 @@ backend/
     storage.py             SQLite CRUD for projects + share tokens
     processors/            Per-format processors (image, video, pdf, youtube, text)
     whisper_manager.py
-  tests/                   Pytest suite (108 tests)
+  tests/                   Pytest suite (124 tests)
 
 frontend/
   src/

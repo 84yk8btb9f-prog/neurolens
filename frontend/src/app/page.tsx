@@ -142,7 +142,7 @@ export default function Home() {
             {trying ? "Analyzing sample…" : "Or try with a sample ad copy"}
           </button>
           <p className="mt-8 text-xs text-muted-foreground">
-            Runs fully local — your content never leaves your machine.
+            Free and open source — self-host for full privacy.
           </p>
         </TabsContent>
 
