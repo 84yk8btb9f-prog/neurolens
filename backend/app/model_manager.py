@@ -1,99 +1,80 @@
+"""Thin shim around the CLIP scorer that preserves the public surface
+(`get_manager()`, `LowMemoryError`, `idle watchdog`, `unload`) used by the
+rest of the app and the existing `/model/*` endpoints. Implementation now
+delegates to `clip_scorer.CLIPScorer`."""
 from __future__ import annotations
+
 import gc
 import logging
 import threading
 import time
-from typing import Any
 
-import psutil
+from app.clip_scorer import CLIP_MODEL_ID, get_scorer
 
 _log = logging.getLogger(__name__)
 
-MODEL_ID = "mlx-community/Qwen2-VL-7B-Instruct-4bit"
-
-# ~4.5 GB model weights + working set. Refuse to load if less than this is free
-# so we don't push a 16 GB Mac into swap and cause a Metal hang.
-_MIN_AVAILABLE_GB_TO_LOAD = 5.5
-
-
-def _load_vlm(model_id: str) -> tuple[Any, Any]:
-    from mlx_vlm import load
-    return load(model_id)
+MODEL_ID = CLIP_MODEL_ID
 
 
 class LowMemoryError(RuntimeError):
-    """Raised when the system doesn't have enough free RAM to safely load the VLM."""
+    """Kept for backwards compatibility with existing exception handlers."""
 
 
 class ModelManager:
-    def __init__(self, idle_timeout: int = 120, min_available_gb: float = _MIN_AVAILABLE_GB_TO_LOAD):
-        self._model: Any = None
-        self._processor: Any = None
+    def __init__(self, idle_timeout: int = 600):
         self._lock = threading.Lock()
         self._last_used: float = 0.0
         self._idle_timeout = idle_timeout
-        self._min_available_gb = min_available_gb
         self._watchdog = threading.Thread(target=self._idle_watchdog, daemon=True)
         self._watchdog.start()
 
     @property
     def loaded(self) -> bool:
-        return self._model is not None
+        return get_scorer().loaded
 
-    def get(self) -> tuple[Any, Any]:
+    def get(self) -> tuple[object, object]:
+        """Backwards compat — returns (scorer, scorer) so old call sites that
+        unpacked (model, processor) still work without crashing. New code should
+        call get_scorer() directly."""
+        scorer = get_scorer()
+        scorer.load()
         with self._lock:
-            if self._model is None:
-                available_gb = psutil.virtual_memory().available / (1024 ** 3)
-                if available_gb < self._min_available_gb:
-                    raise LowMemoryError(
-                        f"Only {available_gb:.1f} GB free; need {self._min_available_gb} GB "
-                        f"to safely load the VLM. Close apps or unload other models."
-                    )
-                _log.info("Loading VLM %s (%.1f GB free)", MODEL_ID, available_gb)
-                self._model, self._processor = _load_vlm(MODEL_ID)
             self._last_used = time.monotonic()
-            model, processor = self._model, self._processor
-        return model, processor
+        return scorer, scorer
 
     def unload(self) -> bool:
-        with self._lock:
-            if self._model is None:
-                return False
-            self._model = None
-            self._processor = None
+        did = get_scorer().unload()
         gc.collect()
-        try:
-            import mlx.core as mx
-            mx.metal.clear_cache()
-        except Exception:
-            pass
-        return True
+        return did
 
     def status(self) -> dict:
         with self._lock:
-            loaded = self._model is not None
             last_used = self._last_used
         idle_for = time.monotonic() - last_used if last_used else None
         return {
-            "loaded": loaded,
+            "loaded": self.loaded,
+            "model_id": MODEL_ID,
             "idle_timeout_seconds": self._idle_timeout,
             "idle_for_seconds": round(idle_for, 1) if idle_for else None,
-            "available_memory_gb": round(psutil.virtual_memory().available / (1024 ** 3), 1),
         }
 
     def _idle_watchdog(self) -> None:
         while True:
-            time.sleep(min(self._idle_timeout, 60))
+            time.sleep(30)
             with self._lock:
-                if self._model is None:
-                    continue
-                if time.monotonic() - self._last_used <= self._idle_timeout:
-                    continue
-            self.unload()
+                last_used = self._last_used
+            if not last_used or not self.loaded:
+                continue
+            if time.monotonic() - last_used > self._idle_timeout:
+                _log.info("ModelManager idle for >%ds — unloading CLIP", self._idle_timeout)
+                self.unload()
 
 
-_manager = ModelManager()
+_manager: ModelManager | None = None
 
 
 def get_manager() -> ModelManager:
+    global _manager
+    if _manager is None:
+        _manager = ModelManager()
     return _manager

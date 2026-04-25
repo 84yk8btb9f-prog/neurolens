@@ -97,7 +97,7 @@ def test_process_youtube_delegates_to_video(tmp_path):
     pv.assert_called_once()
 
 
-def test_process_video_blends_tribe_and_vlm(tmp_path):
+def test_process_video_uses_clip_scores(tmp_path):
     from unittest.mock import patch, MagicMock
     from app.processors.video_processor import process_video
 
@@ -107,46 +107,28 @@ def test_process_video_blends_tribe_and_vlm(tmp_path):
         "visual_cortex", "amygdala", "face_social", "hippocampus",
         "language_areas", "reward_circuit", "prefrontal", "motor_action",
     ]
-    vlm_scores = {k: 40 for k in all_regions}
-    tribe_cortical = {
-        "visual_cortex": 80, "face_social": 75,
-        "language_areas": 70, "motor_action": 65, "prefrontal": 60,
-    }
+    clip_scores = {k: 55 for k in all_regions}
 
     with patch("app.processors.video_processor.extract_frames", return_value=[MagicMock()]), \
          patch("app.processors.video_processor.transcribe_audio", return_value="hello"), \
-         patch("app.processors.video_processor.score_video", return_value=tribe_cortical), \
-         patch("app.processors.video_processor.get_tribe_manager") as mock_tribe_mgr, \
-         patch("app.brain_mapper.get_brain_scores", return_value=vlm_scores):
-        mock_tribe_mgr.return_value.unload.return_value = True
-        result = process_video(str(fake_video))
-
-    assert result["scores"]["visual_cortex"] == 80    # from TRIBE
-    assert result["scores"]["face_social"] == 75      # from TRIBE
-    assert result["scores"]["amygdala"] == 40          # from VLM (subcortical)
-    assert result["scores"]["hippocampus"] == 40       # from VLM (subcortical)
-    assert result["scores"]["reward_circuit"] == 40   # from VLM (subcortical)
-    assert result["meta"]["tribe_used"] is True
-
-
-def test_process_video_falls_back_to_vlm_only(tmp_path):
-    from unittest.mock import patch, MagicMock
-    from app.processors.video_processor import process_video
-
-    fake_video = tmp_path / "ad.mp4"
-    fake_video.write_bytes(b"fake")
-    all_regions = [
-        "visual_cortex", "amygdala", "face_social", "hippocampus",
-        "language_areas", "reward_circuit", "prefrontal", "motor_action",
-    ]
-    vlm_scores = {k: 55 for k in all_regions}
-
-    with patch("app.processors.video_processor.extract_frames", return_value=[MagicMock()]), \
-         patch("app.processors.video_processor.transcribe_audio", return_value="hello"), \
-         patch("app.processors.video_processor.score_video", return_value=None), \
-         patch("app.brain_mapper.get_brain_scores", return_value=vlm_scores):
+         patch("app.brain_mapper.get_brain_scores", return_value=clip_scores):
         result = process_video(str(fake_video))
 
     for region, score in result["scores"].items():
         assert score == 55, f"{region} should be 55, got {score}"
-    assert result["meta"]["tribe_used"] is False
+    assert result["meta"]["frame_count"] == 1
+    assert result["meta"]["transcript_preview"] == "hello"
+
+
+def test_process_video_no_frames_or_transcript_returns_zeros(tmp_path):
+    from unittest.mock import patch
+    from app.processors.video_processor import process_video
+
+    fake_video = tmp_path / "ad.mp4"
+    fake_video.write_bytes(b"fake")
+
+    with patch("app.processors.video_processor.extract_frames", return_value=[]), \
+         patch("app.processors.video_processor.transcribe_audio", return_value=""):
+        result = process_video(str(fake_video))
+
+    assert all(v == 0 for v in result["scores"].values())

@@ -13,15 +13,19 @@ from app.content_processor import route_content
 from app.recommendation_engine import get_recommendations
 from app.model_manager import get_manager, LowMemoryError
 from app.whisper_manager import get_whisper_manager
-from app.tribe_manager import get_tribe_manager
 from app.storage import get_storage
 from app.persona_storage import get_persona_storage
 from app.headline import generate_headline
 
 app = FastAPI(title="NeuroPulse API", version="1.0.0")
+
+_default_origins = ["http://localhost:3000"]
+_env_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+_origins = _env_origins or _default_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=_origins,
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
@@ -137,17 +141,6 @@ def whisper_unload():
     return {"status": "unloaded" if did_unload else "already_unloaded"}
 
 
-@app.get("/tribe/status")
-def tribe_status():
-    return get_tribe_manager().status()
-
-
-@app.post("/tribe/unload")
-def tribe_unload():
-    did_unload = get_tribe_manager().unload()
-    return {"status": "unloaded" if did_unload else "already_unloaded"}
-
-
 class SaveProjectRequest(BaseModel):
     name: str
     result: dict
@@ -247,5 +240,5 @@ def low_memory_handler(_request, exc: LowMemoryError):
     return JSONResponse(
         status_code=503,
         content={"detail": str(exc), "error": "low_memory"},
-        headers={"Access-Control-Allow-Origin": "http://localhost:3000"},
+        headers={"Access-Control-Allow-Origin": _origins[0] if _origins else "*"},
     )
