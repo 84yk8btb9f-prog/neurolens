@@ -60,11 +60,11 @@ function CompareView({ persona }: { persona: string }) {
 
           <div className="grid md:grid-cols-2 gap-8">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-3">A — Recommendations</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">A — Recommendations</p>
               <RecommendationPanel recommendations={a.recommendations} />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-500 mb-3">B — Recommendations</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">B — Recommendations</p>
               <RecommendationPanel recommendations={b.recommendations} />
             </div>
           </div>
@@ -105,10 +105,12 @@ export default function Home() {
   return (
     <main className="min-h-screen flex flex-col items-center px-4 py-16">
       <div className="text-center mb-10 max-w-2xl">
-        <h1 className="text-5xl font-bold tracking-tight mb-4">NeuroPulse</h1>
+        <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4 text-balance">
+          See how the brain reacts to your ad — before you spend a dollar.
+        </h1>
         <p className="text-muted-foreground text-lg leading-relaxed">
-          Drop in any ad — video, image, or copy.
-          See how the brain reacts before you spend a dollar promoting it.
+          Drop in any ad — video, image, or copy — and get exact scores across 8 brain regions.
+          Open source and self-hostable.
         </p>
       </div>
 
@@ -129,18 +131,20 @@ export default function Home() {
         <TabsContent value="analyze" className="flex flex-col items-center">
           <ContentUploader onResult={handleResult} onError={setErr} persona={persona} />
           {err && <p className="mt-4 text-sm text-rose-500 text-center max-w-sm">{err}</p>}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={trySample}
             disabled={trying}
-            className="mt-6 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
+            className="mt-6"
           >
             {trying ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <Loader2 className="animate-spin" />
             ) : (
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles />
             )}
-            {trying ? "Analyzing sample…" : "Or try with a sample ad copy"}
-          </button>
+            {trying ? "Analyzing sample…" : "Try a sample ad copy"}
+          </Button>
           <p className="mt-8 text-xs text-muted-foreground">
             Free and open source — self-host for full privacy.
           </p>

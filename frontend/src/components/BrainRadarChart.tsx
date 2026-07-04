@@ -20,7 +20,7 @@ interface Props {
   compareColor?: string;
 }
 
-export function BrainRadarChart({ scores, compareScores, color = "#6366f1", compareColor = "#f59e0b" }: Props) {
+export function BrainRadarChart({ scores, compareScores, color = "#006bff", compareColor = "#8f8f8f" }: Props) {
   const data = (Object.keys(LABELS) as (keyof BrainScores)[]).map((k) => ({
     region: LABELS[k], A: scores[k], B: compareScores?.[k],
   }));

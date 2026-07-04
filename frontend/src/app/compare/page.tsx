@@ -38,7 +38,7 @@ export default function ComparePage() {
         <>
           <div className="grid md:grid-cols-2 gap-8 mb-8">
             <div>
-              <h3 className="font-semibold mb-2 text-indigo-500">Content A vs B</h3>
+              <h3 className="font-semibold mb-2">Content A vs B</h3>
               <BrainRadarChart scores={a.scores} compareScores={b.scores} />
             </div>
             <div className="space-y-2">
@@ -52,11 +52,11 @@ export default function ComparePage() {
           </div>
           <div className="grid md:grid-cols-2 gap-8">
             <div>
-              <p className="text-sm font-semibold text-indigo-500 mb-2">A — Recommendations</p>
+              <p className="text-sm font-semibold text-muted-foreground mb-2">A — Recommendations</p>
               <RecommendationPanel recommendations={a.recommendations} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-amber-500 mb-2">B — Recommendations</p>
+              <p className="text-sm font-semibold text-muted-foreground mb-2">B — Recommendations</p>
               <RecommendationPanel recommendations={b.recommendations} />
             </div>
           </div>
