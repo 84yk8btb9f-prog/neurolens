@@ -25,6 +25,51 @@ CPU-only. No GPU. Free and open source — use the hosted demo above, or self-ho
 - Not a substitute for real performance data. If you have ROAS / CTR / conversion data, use it.
 - No multi-user auth or billing — open source, run it yourself.
 
+## What is NeuroPulse
+
+**NeuroPulse is an open-source ad creative analysis tool that scores any image, video, or copy across 8 brain regions and tells you the single weakest spot before you spend money promoting it.** It runs on CPU, needs no GPU, and self-hosts for full privacy.
+
+### Why NeuroPulse
+
+Most creative feedback is vague — "make it punchier," "the hook is weak." NeuroPulse gives you a specific verdict tied to a specific region: *"Forgettable — this won't stick in memory five minutes after viewing"* points you at the Hippocampus (memorability) score, not a hand-wave. You get per-region breakdowns and concrete recommendations you can act on in the next edit.
+
+### NeuroPulse vs. the alternatives
+
+| | NeuroPulse | Neuromarketing SaaS (Neurons, Realeyes) | Human focus groups | Just running the ad |
+|---|---|---|---|---|
+| Cost | Free, open source | Paid subscription, per-seat | Expensive per session | Ad spend + time |
+| Setup | Self-host or hosted demo | Vendor account | Recruit panel | Live campaign |
+| Speed | Seconds | Minutes to hours | Days | Days to a verdict |
+| Privacy | Runs locally, no third-party calls | Data sent to vendor | N/A | Platform sees all |
+| What you get | Per-region score + specific recommendation | Attention/emotion heatmaps | Qualitative opinions | Real ROAS/CTR |
+
+Honest limits: NeuroPulse is a creative-review heuristic (CLIP cosine similarity against neuroscience-informed probe texts), **not** a peer-reviewed instrument and **not** a replacement for real performance data. If you already have ROAS/CTR, trust that first. NeuroPulse is for the stage before you spend.
+
+### When to use NeuroPulse
+
+- Pre-flight check on an ad before it goes live
+- Comparing two creative variants and wanting a reason, not a coin flip
+- Fast iteration on hooks, thumbnails, and opening frames
+- Applying a specific creator's playbook (Hormozi, GaryVee, Brunson, or one you generate) to your own creative
+- You want a self-hosted, private tool with no vendor and no per-seat cost
+
+### FAQ
+
+**Is NeuroPulse real neuroscience?**
+No. Scores come from CLIP ViT-L/14 cosine similarity against neuroscience-informed probe texts, mapped to 0–100. Treat it as a structured creative-review heuristic, not a clinical or peer-reviewed signal.
+
+**Does it need a GPU?**
+No. CPU-only. First run downloads ~600 MB of model weights, cached after that.
+
+**Can I run it fully private?**
+Yes. Self-host the Docker backend and Next.js frontend — no third-party calls. The hosted demo exists for convenience.
+
+**What can it analyze?**
+Images, video, YouTube/TikTok/Instagram URLs, PDFs, and raw text. Whisper transcribes video audio so spoken copy feeds the language and persuasion regions.
+
+**What's the persona generator?**
+Paste book excerpts, transcripts, or tweet threads and an LLM extracts that creator's tactical playbook into the 8-region structure, then layers their steps onto your recommendations.
+
 ## Quick start (local)
 
 Requires: Python 3.11+, Node.js 18+, ffmpeg (`brew install ffmpeg`).
