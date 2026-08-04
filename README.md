@@ -1,13 +1,26 @@
 # NeuroPulse
 
+![License: MIT](https://img.shields.io/badge/license-MIT-F3F2EE?style=flat-square&labelColor=0B0B0D)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-F3F2EE?style=flat-square&labelColor=0B0B0D)
+![Stack](https://img.shields.io/badge/stack-FastAPI%20%7C%20Next.js-F3F2EE?style=flat-square&labelColor=0B0B0D)
+
 Drop in any ad — video, image, or copy. See how the brain reacts before you spend a dollar promoting it.
 
 NeuroPulse is an open-source brain-response analysis tool for marketing content. It scores creative across 8 brain regions, gives you actionable recommendations, and lets you analyze content through the lens of well-known direct-response creators.
 
-**Live demo:** <https://neurolens-nine.vercel.app/>
-**Backend API:** <https://niksapa-neurolens-backend.hf.space/health>
+CPU-only. No GPU. Free and open source — self-host for full privacy (no third-party calls).
 
-CPU-only. No GPU. Free and open source — use the hosted demo above, or self-host for full privacy (no third-party calls).
+## Quick start (local)
+
+Requires: Python 3.11+, Node.js 18+, ffmpeg (`brew install ffmpeg`).
+
+```bash
+git clone https://github.com/nikolas-sapa/neurolens
+cd neurolens
+bash start.sh
+```
+
+Open http://localhost:3000. First run downloads ~600 MB of model weights (cached after that).
 
 ## What it does
 
@@ -62,25 +75,13 @@ No. Scores come from CLIP ViT-L/14 cosine similarity against neuroscience-inform
 No. CPU-only. First run downloads ~600 MB of model weights, cached after that.
 
 **Can I run it fully private?**
-Yes. Self-host the Docker backend and Next.js frontend — no third-party calls. The hosted demo exists for convenience.
+Yes. Self-host the Docker backend and Next.js frontend — no third-party calls.
 
 **What can it analyze?**
 Images, video, YouTube/TikTok/Instagram URLs, PDFs, and raw text. Whisper transcribes video audio so spoken copy feeds the language and persuasion regions.
 
 **What's the persona generator?**
 Paste book excerpts, transcripts, or tweet threads and an LLM extracts that creator's tactical playbook into the 8-region structure, then layers their steps onto your recommendations.
-
-## Quick start (local)
-
-Requires: Python 3.11+, Node.js 18+, ffmpeg (`brew install ffmpeg`).
-
-```bash
-git clone https://github.com/84yk8btb9f-prog/neurolens
-cd neurolens
-bash start.sh
-```
-
-Open http://localhost:3000. First run downloads ~600 MB of model weights (cached after that).
 
 ## Deploy your own
 
@@ -172,7 +173,7 @@ frontend/
 
 ## Contributing
 
-Side project / portfolio piece. PRs welcome — keep them tight and tested.
+PRs welcome — keep them tight and tested. See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup for both the backend and frontend, repo layout, and PR expectations. This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
 
 ```bash
 # backend
@@ -184,4 +185,4 @@ cd frontend && npx tsc --noEmit
 
 ## License
 
-MIT.
+MIT — see [LICENSE](LICENSE).
