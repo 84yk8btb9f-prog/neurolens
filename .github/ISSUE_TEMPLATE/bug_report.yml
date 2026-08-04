@@ -1,0 +1,88 @@
+name: Bug report
+description: Report a problem with NeuroPulse
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please fill out as much as you can — it makes reproduction much faster.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Where does the bug happen?
+      options:
+        - Backend (FastAPI)
+        - Frontend (Next.js)
+        - Both / not sure
+        - Deployment (Docker / HF Space / Vercel)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `bash start.sh`
+        2. Upload an image on /analysis
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / error output
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version (if backend-related)
+      placeholder: "3.11.6"
+    validations:
+      required: false
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version (if frontend-related)
+      placeholder: "18.19.0"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: run-mode
+    attributes:
+      label: How are you running NeuroPulse?
+      options:
+        - Local (bash start.sh)
+        - Self-hosted backend (Docker / HF Space) + self-hosted frontend
+        - Self-hosted backend + hosted demo frontend
+        - Other
+    validations:
+      required: false

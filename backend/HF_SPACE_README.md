@@ -10,7 +10,7 @@ license: mit
 
 # NeuroPulse Backend
 
-FastAPI service powering [NeuroPulse](https://github.com/84yk8btb9f-prog/neurolens) — open-source brain-response analysis for marketing content.
+FastAPI service powering [NeuroPulse](https://github.com/nikolas-sapa/neurolens) — open-source brain-response analysis for marketing content.
 
 ## Endpoints
 
